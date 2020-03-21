@@ -140,6 +140,7 @@
 (re-frame/reg-fx :firebase/email-sign-in     auth/email-sign-in)
 (re-frame/reg-fx :firebase/email-create-user auth/email-create-user)
 
+(re-frame/reg-fx :firebase/send-password-reset-email auth/send-password-reset-email)
 
 ;;; Login to firebase anonymously
 ;;;

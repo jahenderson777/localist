@@ -1,6 +1,7 @@
 (ns localist.events
   (:require
    [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx]]
+   [localist.re-frame-firebase.firestore :as firestore]
    [localist.db :as db]
    ))
 
@@ -13,35 +14,55 @@
               (fn [db [_ & kvs]]
                 (apply assoc db kvs)))
 
-;;; Simple sign-in event. Just trampoline down to the re-frame-firebase
-;;; fx handler.
 (reg-event-fx
- :sign-in
- (fn [_ _] {:firebase/google-sign-in {:sign-in-method :popup}}))
+ :sign-in-facebook
+ (fn [_ _] {:firebase/facebook-sign-in {:sign-in-method :popup}}))
 
-
-;;; Ditto for sign-out
 (reg-event-fx
  :sign-out
  (fn [_ _] {:firebase/sign-out nil}))
 
+(reg-event-fx
+ :send-password-reset-email
+ (fn [{:keys [db]} _] 
+   (let [{:keys [temp-email]} db] 
+     {:firebase/send-password-reset-email {:email temp-email
+                                           :on-complete #(js/alert "Password reset email sent")}})))
 
-;;; Store the user object
 (reg-event-db
  :set-user
  (fn [db [_ user]]
    (assoc db :user user)))
 
-;;; Create a new user
 (reg-event-fx
  :create-by-email
- (fn [_ [_ email pass]]
-   {:firebase/email-create-user {:email email :password pass}}))
+ (fn [{:keys [db]} _]
+   (let [{:keys [temp-email temp-password temp-password-confirm]} db]
+     {:firebase/email-create-user {:email temp-email :password temp-password}
+      :db (dissoc db :temp-email :temp-password :temp-password-confirm :temp-name)})))
 
 
-;;; Sign in by email
 (reg-event-fx
  :sign-in-by-email
- (fn [_ [_ email pass]]
-   {:firebase/email-sign-in {:email email :password pass}}))
+ (fn [{:keys [db]} [_]]
+   (let [{:keys [temp-email temp-password]} db]
+     {:firebase/email-sign-in {:email temp-email :password temp-password}
+      :db (dissoc db :temp-email :temp-password :temp-password-confirm :temp-name)})))
 
+
+(reg-event-fx
+ :firestore-add-item
+ (fn [{:keys [db]} _]
+   (let [{:keys [user temp-item]} db
+         {:keys [uid]} user]
+     {:firestore/add {:path [:users uid :my-list]
+                      :data {:timestamp (firestore/server-timestamp)
+                             :item temp-item}                       
+                      :on-success [:assoc :temp-item nil]
+                      :on-failure #(prn "Error:" %)}})))
+
+(reg-event-fx
+ :firebase-error
+ (fn [_ [_ & v]]
+   (println "error")
+   (cljs.pprint/pprint v)))

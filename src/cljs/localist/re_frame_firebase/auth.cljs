@@ -46,9 +46,10 @@
                    set-user)))
       (.catch (core/default-error-handler))))
 
-(def ^:private sign-in-fns
-  {:popup (memfn signInWithPopup auth-provider)
-   :redirect (memfn signInWithRedirect auth-provider)})
+(defn ^:private sign-in-fns [sign-in-method auth-provider]
+  (case sign-in-method
+    :popup (memfn signInWithPopup auth-provider)
+    :redirect (memfn signInWithRedirect auth-provider)))
 
 (defn- maybe-link-with-credential
   [pending-credential user-credential]
@@ -58,35 +59,43 @@
           (.linkWithCredential pending-credential)
           (.catch (core/default-error-handler))))))
 
+
+(defn debug-js-obj [obj]
+  (println obj (type obj))
+  (cljs.pprint/pprint (for [prop (js->clj (.getOwnPropertyNames js/Object obj))]
+                        [prop (type (aget obj prop))])))
+
 (defn- oauth-sign-in
   [auth-provider opts]
   (let [{:keys [sign-in-method scopes custom-parameters link-with-credential]
          :or {sign-in-method :redirect}} opts]
-
+    (debug-js-obj auth-provider)
+    
     (doseq [scope scopes]
       (.addScope auth-provider scope))
 
     (when custom-parameters
       (.setCustomParameters auth-provider (clj->js custom-parameters)))
 
-    (if-let [sign-in (sign-in-fns sign-in-method)]
-      (-> (.auth firebase)
-          (sign-in auth-provider)
-          (.then (partial maybe-link-with-credential link-with-credential))
-          (.catch (core/default-error-handler)))
-      (>evt [(core/default-error-handler)
-             (js/Error. (str "Unsupported sign-in-method: " sign-in-method ". Either :redirect or :popup are supported."))]))))
+    (-> (.auth firebase)
+        (.signInWithPopup auth-provider)
+        (.then (partial maybe-link-with-credential link-with-credential))
+        (.catch (core/default-error-handler)))
+    #_(>evt [(core/default-error-handler)
+             (js/Error. (str "Unsupported sign-in-method: " sign-in-method ". Either :redirect or :popup are supported."))])))
+
 
 
 (defn google-sign-in
   [opts]
-  ;; TODO: use Credential for mobile.
-  (oauth-sign-in (.. firebase -auth -GoogleAuthProvider.) opts))
+  (let [google-auth-provider (.. firebase -auth -GoogleAuthProvider.)]
+    (oauth-sign-in (google-auth-provider.) opts)))
 
 
 (defn facebook-sign-in
   [opts]
-  (oauth-sign-in (.. firebase -auth -FacebookAuthProvider.) opts))
+  (let [facebook-auth-provider (.. firebase -auth -FacebookAuthProvider)]
+    (oauth-sign-in (facebook-auth-provider.) opts)))
 
 
 (defn twitter-sign-in
@@ -112,6 +121,11 @@
       (.then set-user)
       (.catch (core/default-error-handler))))
 
+(defn send-password-reset-email [{:keys [email on-complete]}]
+  (-> (.auth firebase)
+      (.sendPasswordResetEmail email)
+      (.then on-complete)
+      (.catch (core/default-error-handler))))
 
 (defn anonymous-sign-in [opts]
   (-> (.auth firebase)

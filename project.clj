@@ -4,8 +4,9 @@
                   :exclusions [com.google.javascript/closure-compiler-unshaded
                                org.clojure/google-closure-library
                                org.clojure/google-closure-library-third-party]]
-                 [thheller/shadow-cljs "2.8.83"]
+                 [thheller/shadow-cljs "2.8.93"]
                  [com.degel/iron "0.4.0"]
+                 [clj-commons/secretary "1.2.4"]
                  ;[cljsjs/firebase "7.5.0-0"]
                  ;[cljsjs/firebase "7.1.0-1"]
                  [reagent "0.9.1"]

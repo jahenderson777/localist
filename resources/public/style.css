@@ -1,0 +1,12 @@
+div#app {
+    text-align: center;
+    align-content: center;
+    display: flex;
+    margin: auto
+}
+
+body {
+    text-align: center;
+    padding: 10px;
+    
+}

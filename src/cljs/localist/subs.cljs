@@ -12,9 +12,11 @@
  (fn [db [_ & path]]
    (get-in db path)))
 
-(reg-sub
+#_(reg-sub
  :name-firestore
- (fn [_ _]
-   (re-frame/subscribe [:firestore/on-snapshot {:path-document [:users :test1]}]))
+ :<- [:get :user :uid]
+ (fn [{:keys [user]} _]
+   (let [{:keys [uid]} user]
+     (re-frame/subscribe [:firestore/on-snapshot {:path-document [:users uid :my-list]}])))
  (fn [value _]
    (with-out-str (cljs.pprint/pprint (:data value)))))
