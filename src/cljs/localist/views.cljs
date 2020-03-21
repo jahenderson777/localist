@@ -7,5 +7,5 @@
 (defn main-panel []
   (let [name (re-frame/subscribe [:name-firestore])]
     [:div
-     [:h1 "Hello 2from " @name]
+     [:h1 "Hello from " @name]
      ]))
