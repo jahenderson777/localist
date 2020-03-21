@@ -97,7 +97,6 @@
   (let [facebook-auth-provider (.. firebase -auth -FacebookAuthProvider)]
     (oauth-sign-in (facebook-auth-provider.) opts)))
 
-
 (defn twitter-sign-in
   [opts]
   (oauth-sign-in (.. firebase -auth -TwitterAuthProvider.) opts))

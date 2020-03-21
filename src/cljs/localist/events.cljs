@@ -65,4 +65,5 @@
  :firebase-error
  (fn [_ [_ & v]]
    (println "error")
-   (cljs.pprint/pprint v)))
+   (cljs.pprint/pprint v)
+   (js/alert v)))

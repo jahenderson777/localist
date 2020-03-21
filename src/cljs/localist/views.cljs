@@ -3,6 +3,7 @@
    [re-frame.core :as re-frame :refer [subscribe dispatch]]
    [localist.subs :as subs]
    [localist.style :refer [s]]
+   [localist.re-frame-firebase.auth :as firebase-auth]
    ))
 
 (defn <- [& v]
@@ -32,8 +33,8 @@
 
 (defn login-create-account []
   [:div {:style (s :tc)}    
-   [button {:on-click #(! :sign-in-facebook)}
-    "Login with Facebook"]
+   [button {:on-click #(firebase-auth/facebook-sign-in {})}
+    "Login with Facebook3"]
    [:hr]
 
    (if (<- :get :show-login-account)
