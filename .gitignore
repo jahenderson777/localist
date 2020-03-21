@@ -1,5 +1,5 @@
 /out/
-/resources/public/js/compiled/
+
 /target/
 /*-init.clj
 /*.log
@@ -28,6 +28,7 @@ pom.xml.asc
 .lein-failures
 .nrepl-port
 .cpcache/
-/resources/public/js/compiled
+/resources/public/js/compiled/*
+!/resources/public/js/compiled/app.js
 .shadow-cljs/
 yarn.lock
