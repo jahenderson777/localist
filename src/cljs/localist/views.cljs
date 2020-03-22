@@ -7,7 +7,6 @@
    ))
 
 (defn <- [& v]
-  (println v)
   (deref (subscribe (vec v))))
 
 (defn ! [& v]
@@ -75,20 +74,34 @@
                                                          :order-by [[:timestamp :asc]]}))]
              ^{:key (:id item)}
              [:div (get-in item [:data "item"])]))]
-   [:div 
-    [:input {:style (s :f3 :pa2)
-             :type "email"
-             :id "new-item"
-             :name "new-item"
-             :size 35
-             :value (<- :get :temp-item)
-             :placeholder "enter a new item"
-             :on-change #(! :assoc :temp-item (-> % .-target .-value))}]
-    [button {:on-click #(! :firestore-add-item)} "add a test item"]]
-   [button {:on-click #(! :sign-out)} "logout"]])
+   
+   [button {:on-click #(! :sign-out)} "logout"]
+   [:div {:style (merge (s :w100)
+                        {:position "fixed"
+                         :top 0})}
+    [:div {:style (merge (s :fdr :w100)
+                         {:display "flex"})}
+     [:input {:style (s :f3 :pa2 :w100)
+              :type "email"
+              :id "new-item"
+              :name "new-item"
+              :value (<- :get :temp-item)
+              :placeholder "enter a new item"
+              :on-change #(! :assoc :temp-item (-> % .-target .-value))}]
+     
+     [:button {:style (s :bg-brand0)
+               :on-click #(! :firestore-add-item)} "add"]
+     [:a.border-menu {:style (s :f2 :ml2)
+                      :on-click #(! :assoc :show-menu true)}]]
+    (when (<- :get :show-menu)
+      [:div {:style (merge (s :bg-status0)
+                           {:height "50vh"})}
+       [:a {:on-click #(! :assoc :show-menu nil)}
+        "close"]])
+    ]])
 
 (defn main-panel []  
-  [:div {:style (merge (s :pa4 :bg-ui1)
+  [:div {:style (merge (s  :bg-ui1 :pb7)
                        {:max-width 800
                         :margin "auto"})}
    [:p {:style (s :f1 :pb4)} "LocaList  " (<- :get :profile)]

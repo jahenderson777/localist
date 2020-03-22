@@ -324,7 +324,7 @@
 (def s (init
         {:palette {:ui0 "#333344"
                    :ui1 "#DDDDCC"
-                   :brand0 "#222244"
+                   :brand0 "#888844"
                    :brand1 "#202033"
                    :status0 "#5b9851"
                    :status1 "#f5a623"
