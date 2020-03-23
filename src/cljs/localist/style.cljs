@@ -9,10 +9,12 @@
 (defn flex
   [opts]
   "Flex properties"
-  {:fg1 {:flexGrow 1}
+  {:flex {:display "flex"}
+   :fg1 {:flexGrow 1}
    :fs0 {:flexShrink 0}
    :fdr {:flexDirection "row"}
    :fdrr {:flexDirection "row-reverse"}
+   :fdc {:flexDirection "column"}
    :fdcr {:flexDirection "column-reverse"}
    :fww {:flexWrap "wrap"}
    :aifs {:alignItems "flex-start"}

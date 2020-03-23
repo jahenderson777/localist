@@ -25,7 +25,7 @@
               :type type
               :id id
               :name id
-              :size (or size 35)              
+              :size (or size 23)              
               :default-value val
               :placeholder id
               :on-change #(! :assoc db-key (-> % .-target .-value))}]]))
@@ -33,7 +33,7 @@
 (defn login-create-account []
   [:div {:style (s :tc)}    
    [button {:on-click #(firebase-auth/facebook-sign-in {})}
-    "Login with Facebook3"]
+    "Login with Facebook"]
    [:hr]
 
    (if (<- :get :show-login-account)
@@ -65,48 +65,119 @@
        [:a {:style {:text-decoration "underline" :cursor "pointer"} :on-click #(! :assoc :show-login-account true)} "Login with an existing account"]]])])
 
 
+(def input-ref (atom nil))
+
+(defn add-form []
+  (let [is-edit? (<- :get :edit-item)
+        submit-event (if is-edit? 
+                       :firestore-update-item
+                       :firestore-add-item)
+        submit-text (if is-edit?
+                      "save"
+                      "add")]
+    [:div {:style (merge (s :bg-status0 :f4 :w100)
+                         {:max-width 600
+                          :position "fixed"
+                          :bottom 0})}
+     
+     [:div {:style (merge (s :fdr)
+                          {:max-width "100%"
+                           :min-width "100%"})}
+      [:input {:style (merge (s :f4 :ma2 :fg1 :w4)
+                             {})
+               :type "text"
+               :id "new-item"
+               :name "new-item"
+               :ref (fn [el]
+                      (reset! input-ref el))
+               :auto-focus true
+               :value (<- :get :temp-item)
+               :placeholder "enter a new item"
+               :on-key-press (fn [e]
+                               (js/console.log e)
+                               (when (= 13 (.-charCode e))
+                                 (.blur @input-ref)
+                                 (! submit-event)))
+               :on-change #(! :assoc :temp-item (-> % .-target .-value))}]
+      [:div
+       [:button {:style (s :bg-brand0 :pa2 :ma2 :fs0)
+                 :on-click #(! submit-event)} submit-text]]]
+     [:div {:style (s :fdr :jcsa)}
+      (when is-edit?
+        [:a {:style (s :ma3)
+             :on-click #(! :firestore-delete-item)}
+         "delete"])
+      [:a {:style (s :ma3)
+           :on-click #(! :assoc :show-menu nil :edit-item nil)}
+       "close"]]]))
+
+(defn item-block [item]
+  (let [data (:data item)
+        id (:id item)
+        txt (get data "item")]
+    [:div {:style (merge (s :mb1 :pa2 :bg-status1 :tl :fdr)
+                         {:display "flex"})}
+     [:div {:style (s :fg1)
+            :on-click #(! :assoc :edit-item item :temp-item txt)}
+      txt]
+     #_[:a {:style (s :f6)
+          :on-click #(! :firestore-delete-item id)}
+      "remove"]]))
 
 (defn logged-in []
   [:div
-   [:p (str "Welcome " (:display-name (<- :get :user)))]
+   (when-let [name (:display-name (<- :get :user))]
+     [:p {:style (s :pb3 :pt3)} (str "Welcome " name)])
+   [:div {:style (s :f3 :pb3 :pt3 :fwb)}
+    "My shopping list"]
    [:div
     (doall (for [item (:docs (<- :firestore/on-snapshot {:path-collection [:users (<- :get :user :uid) :my-list]
                                                          :order-by [[:timestamp :asc]]}))]
              ^{:key (:id item)}
-             [:div (get-in item [:data "item"])]))]
+             [:div [item-block item]]))]
    
    [button {:on-click #(! :sign-out)} "logout"]
-   [:div {:style (merge (s :w100)
-                        {:position "fixed"
-                         :top 0})}
-    [:div {:style (merge (s :fdr :w100)
-                         {:display "flex"})}
-     [:input {:style (s :f3 :pa2 :w100)
-              :type "email"
-              :id "new-item"
-              :name "new-item"
-              :value (<- :get :temp-item)
-              :placeholder "enter a new item"
-              :on-change #(! :assoc :temp-item (-> % .-target .-value))}]
-     
-     [:button {:style (s :bg-brand0)
-               :on-click #(! :firestore-add-item)} "add"]
-     [:a.border-menu {:style (s :f2 :ml2)
-                      :on-click #(! :assoc :show-menu true)}]]
-    (when (<- :get :show-menu)
-      [:div {:style (merge (s :bg-status0)
-                           {:height "50vh"})}
-       [:a {:on-click #(! :assoc :show-menu nil)}
-        "close"]])
-    ]])
+   (if (or (<- :get :show-menu)
+           (<- :get :edit-item))
+     [add-form]
+     [:div {:style (merge (s :bg-status0 :f3 :pa2)
+                          {:position "fixed"
+                           :bottom 0
+                           :right 0})
+            :on-click #(! :assoc :show-menu true :edit-item nil :temp-item nil)}
+      "add" [:br] "to list"])
+   #_[:div {:style (merge (s :w100)
+                          {:position "fixed"
+                           :top 0})}
+      [:div {:style (merge (s :fdr :w100)
+                           {:display "flex"})}
+       [:input {:style (s :f3 :pa2 :w100)
+                :type "email"
+                :id "new-item"
+                :name "new-item"
+                :value (<- :get :temp-item)
+                :placeholder "enter a new item"
+                :on-change #(! :assoc :temp-item (-> % .-target .-value))}]
+       
+       [:button {:style (s :bg-brand0)
+                 :on-click #(! :firestore-add-item)} "add"]
+       [:a.border-menu {:style (s :f2 :ml2)
+                        :on-click #(! :assoc :show-menu true)}]]
+      (when (<- :get :show-menu)
+        [:div {:style (merge (s :bg-status0)
+                             {:height "50vh"})}
+         [:a {:on-click #(! :assoc :show-menu nil)}
+          "close"]])
+      ]])
 
 (defn main-panel []  
   [:div {:style (merge (s  :bg-ui1 :pb7)
-                       {:max-width 800
-                        :margin "auto"})}
-   [:p {:style (s :f1 :pb4)} "LocaList  " (<- :get :profile)]
-   [:p {:style (s :f2 :pb4)} "Corona Community Response"]
-   [:p {:style (s :f3 :pb4)} "Supporting volunteer home delivery groups and local communities"]
+                       {:max-width 600
+                        :min-height "100vh"
+                        :margin "0 auto"})}
+   [:p {:style (s :f2 :pb2)} "LocaList  " (<- :get :profile)]
+   [:p {:style (s :f3 :pb2)} "Corona Community Response"]
+   [:p {:style (s :f4 :pb2)} "Supporting volunteer home delivery groups and local communities"]
    (if (<- :get :user)
        [logged-in]
        [login-create-account])])

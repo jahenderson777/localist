@@ -59,6 +59,37 @@
                       :data {:timestamp (firestore/server-timestamp)
                              :item temp-item}                       
                       :on-success [:assoc :temp-item nil]
+                      :on-failure #(prn "Error:" %)}
+      :db (dissoc db :edit-item :temp-item :show-menu)})))
+
+(reg-event-fx
+ :firestore-update-item
+ (fn [{:keys [db]} _]
+   (let [{:keys [user temp-item edit-item]} db
+         {:keys [uid]} user]
+     {:firestore/update {:path [:users uid :my-list (:id edit-item)]
+                      :data (assoc (:data edit-item)
+                                   :item temp-item) 
+                      :on-success [:assoc :temp-item nil :edit-item nil]
+                      :on-failure #(prn "Error:" %)}})))
+
+(reg-event-fx
+ :firestore-delete-item
+ (fn [{:keys [db]} _]
+   (let [{:keys [user temp-item edit-item]} db
+         {:keys [uid]} user]
+     {:firestore/delete {:path [:users uid :my-list (:id edit-item)]
+                         ;:on-success [:assoc :temp-item nil :edit-item nil]
+                         :on-failure #(prn "Error:" %)}
+      :db (dissoc db :edit-item :temp-item)})))
+
+#_(reg-event-fx
+ :firestore-delete-item
+ (fn [{:keys [db]} [_ id]]
+   (let [{:keys [user]} db
+         {:keys [uid]} user]
+     {:firestore/delete {:path [:users uid :my-list id]                       
+                      ;:on-success [:assoc :temp-item nil]
                       :on-failure #(prn "Error:" %)}})))
 
 (reg-event-fx
