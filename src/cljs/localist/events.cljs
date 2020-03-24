@@ -53,14 +53,14 @@
 (reg-event-fx
  :firestore-add-item
  (fn [{:keys [db]} _]
-   (let [{:keys [user temp-item]} db
+   (let [{:keys [user temp-item-new]} db
          {:keys [uid]} user]
      {:firestore/add {:path [:users uid :my-list]
                       :data {:timestamp (firestore/server-timestamp)
-                             :item temp-item}                       
-                      :on-success [:assoc :temp-item nil]
+                             :item temp-item-new}
+                      :on-success [:assoc :temp-item-new nil]
                       :on-failure #(prn "Error:" %)}
-      :db (dissoc db :edit-item :temp-item :show-menu)})))
+      :db (dissoc db :edit-item :temp-item-new :show-menu)})))
 
 (reg-event-fx
  :firestore-update-item
@@ -72,6 +72,21 @@
                                    :item temp-item) 
                       :on-success [:assoc :temp-item nil :edit-item nil]
                       :on-failure #(prn "Error:" %)}})))
+
+(reg-event-fx
+ :account-edit-save
+ (fn [{:keys [db]} _]
+   (let [{:keys [user temp-name temp-address temp-phone temp-dropoff temp-postcode]} db
+         {:keys [uid]} user]
+     {:firestore/update {:path [:users uid]
+                         :data (merge (when temp-name {"name" temp-name})
+                                      (when temp-address {"address" temp-address})
+                                      (when temp-phone {"phone" temp-phone})
+                                      (when temp-dropoff {"dropoff" temp-dropoff})
+                                      (when temp-postcode {"postcode" temp-postcode})
+                                      ) 
+                         :on-success [:assoc :edit-account nil]
+                         :on-failure #(prn "Error:" %)}})))
 
 (reg-event-fx
  :firestore-delete-item

@@ -31,7 +31,7 @@
               :on-change #(! :assoc db-key (-> % .-target .-value))}]]))
 
 (defn login-create-account []
-  [:div {:style (s :tc)}    
+  [:div {:style (s :tc :pt4 )}    
    [button {:on-click #(firebase-auth/facebook-sign-in {})}
     "Login with Facebook"]
    [:hr]
@@ -58,8 +58,9 @@
       [login-input {:id "Email" :db-key :temp-email :type "email"}]
       [login-input {:id "Password" :db-key :temp-password :type "password"}]
       [login-input {:id "Confirm Password" :db-key :temp-password-confirm :type "password"}]
-      [button {:on-click #(! :create-by-email)}
-       "Create account"]
+      [:div {:style (s :pt3)} 
+       [button {:on-click #(! :create-by-email)}
+        "Create account"]]
       [:div {:style (s :mt3)}
        ;[:div {:style (s :mb3)} "or"]
        [:a {:style {:text-decoration "underline" :cursor "pointer"} :on-click #(! :assoc :show-login-account true)} "Login with an existing account"]]])])
@@ -67,117 +68,169 @@
 
 (def input-ref (atom nil))
 
-(defn add-form []
-  (let [is-edit? (<- :get :edit-item)
-        submit-event (if is-edit? 
+(defn add-form [is-edit?]
+  (let [submit-event (if is-edit? 
                        :firestore-update-item
                        :firestore-add-item)
         submit-text (if is-edit?
                       "save"
-                      "add")]
-    [:div {:style (merge (s :bg-status0 :f4 :w100)
-                         {:max-width 600
-                          :position "fixed"
-                          :bottom 0})}
+                      "add")
+        temp-item (if is-edit?
+                    :temp-item
+                    :temp-item-new)]
+    [:div {:style (merge (s :flex :bg-status1 :f5 :fdc)
+                         {;:max-width 700
+                          ;:position "fixed"
+                          ;:width "95%"
+                          ;:bottom 0
+                          })}
      
-     [:div {:style (merge (s :fdr)
-                          {:max-width "100%"
-                           :min-width "100%"})}
-      [:input {:style (merge (s :f4 :ma2 :fg1 :w4)
-                             {})
+     [:div {:style (s :flex :fdr
+                      {:max-width "100%"
+                       :min-width "100%"})}
+      [:input {:style (s :f5 :ma2 :fg1 :w4 :pl2)
                :type "text"
                :id "new-item"
                :name "new-item"
                :ref (fn [el]
                       (reset! input-ref el))
                :auto-focus true
-               :value (<- :get :temp-item)
+               :value (<- :get temp-item)
                :placeholder "enter a new item"
                :on-key-press (fn [e]
                                (js/console.log e)
                                (when (= 13 (.-charCode e))
                                  (.blur @input-ref)
                                  (! submit-event)))
-               :on-change #(! :assoc :temp-item (-> % .-target .-value))}]
+               :on-change #(! :assoc temp-item (-> % .-target .-value))}]
       [:div
-       [:button {:style (s :bg-brand0 :pa2 :ma2 :fs0)
+       [:button {:style (s :bg-status0 :white :pa2 :mt2 :mr2 :mb2 :fs0)
                  :on-click #(! submit-event)} submit-text]]]
-     [:div {:style (s :fdr :jcsa)}
+     [:div {:style (s :flex :fdr :jcsa)}
       (when is-edit?
-        [:a {:style (s :ma3)
-             :on-click #(! :firestore-delete-item)}
-         "delete"])
-      [:a {:style (s :ma3)
-           :on-click #(! :assoc :show-menu nil :edit-item nil)}
-       "close"]]]))
+        [:<>
+         [:a {:style (s :ma3)
+              :on-click #(! :firestore-delete-item)}
+          "delete"]
+         [:a {:style (s :ma3)
+              :on-click #(! :assoc :show-menu nil :edit-item nil)}
+          "cancel"]])]]))
 
 (defn item-block [item]
   (let [data (:data item)
         id (:id item)
         txt (get data "item")]
-    [:div {:style (merge (s :mb1 :pa2 :bg-status1 :tl :fdr)
-                         {:display "flex"})}
-     [:div {:style (s :fg1)
-            :on-click #(! :assoc :edit-item item :temp-item txt)}
-      txt]
-     #_[:a {:style (s :f6)
-          :on-click #(! :firestore-delete-item id)}
-      "remove"]]))
+    [:div {:style (merge (s :pa2 :bg-status1 :tl :fdr :o80)
+                         {:display "flex"
+                          :min-height 20
+                          :cursor "pointer"})
+           :on-click #(! :assoc :edit-item item :temp-item txt)}
+     [:div {:style (s )}
+      txt]]))
+
+(defn my-account-field [data field-name editing? & [last?]]
+  [:div {:style (s (when-not last? :mr2))}
+   [:div {:style (s :tl {:display "inline-block"})}
+    [:div {:style (s :pl1 :f7 :fwb :brand0)}
+     (clojure.string/capitalize field-name)]
+    (if editing?
+      (let [kw (keyword (str "temp-" field-name))]
+        [(if (#{"address" "dropoff"} field-name) 
+           :textarea
+           :input) {:style (s :f5 :mb2 :mt1 :pl2 
+                              {:width 300})
+                    :type "text"
+                    :id field-name
+                    :name field-name
+                    :rows 3
+                    :value (or (<- :get kw) 
+                               (get data field-name))                
+                    :on-change #(! :assoc kw (-> % .-target .-value))}])
+      [:div {:style (s  :mb2 :pa1 :f5
+                        {:display "inline-block"
+                         :min-height 20
+                         :min-width 20})}
+       [:pre
+        (get data field-name)]])]])
+
+(defn my-account []
+  (let [data (:data (<- :firestore/on-snapshot {:path-document [:users (<- :get :user :uid)]}))
+        name (get data "name")
+        phone (get data "phone")
+        address (get data "address")
+        postcode (get data "postcode")
+        editing? (<- :get :edit-account)]
+    [:div 
+     [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80)}
+      "My account"]
+
+     [:div {:style (s (if editing? :tc :tl) 
+                      (when-not editing? :flex) 
+                      :jcsb)}
+      [:div 
+       [my-account-field data "name" editing?]
+       [my-account-field data "phone" editing?]]
+      [:div
+       [my-account-field data "address" editing?]
+       [my-account-field data "postcode" editing?]]
+      [:div
+       [my-account-field data "dropoff" editing? (not editing?)]
+       (when-not editing?
+         [:div {:style (s :tc)}
+          [:a {:on-click #(! :assoc :edit-account true)}
+           "edit"]])]
+      ]
+     
+     (when editing?
+       [:<> 
+        [:div
+         [:button {:style (s :bg-status0 :white :pa2 :mt3 :mb3 :fs0)
+                   :on-click #(! :account-edit-save)} "save"]]
+        [:div {:style (s :ma3)} 
+         [:a {:on-click #(! :assoc :edit-account false)}
+          "cancel"]]]
+       )
+     ]))
 
 (defn logged-in []
   [:div
    (when-let [name (:display-name (<- :get :user))]
      [:p {:style (s :pb3 :pt3)} (str "Welcome " name)])
-   [:div {:style (s :f3 :pb3 :pt3 :fwb)}
+   [my-account]
+   [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80)}
     "My shopping list"]
-   [:div
+   [:p {:style (s :f6 :brand0)} "[click an item to edit/delete]"]
+   [:div {:style (s :pb1)}
     (doall (for [item (:docs (<- :firestore/on-snapshot {:path-collection [:users (<- :get :user :uid) :my-list]
                                                          :order-by [[:timestamp :asc]]}))]
              ^{:key (:id item)}
-             [:div [item-block item]]))]
+             [:div {:style (s :mt2 :mb1)}
+              (if (= (:id item)
+                     (:id (<- :get :edit-item)))                
+                [add-form true]
+                [item-block item])]))]
+   [add-form false]
    
-   [button {:on-click #(! :sign-out)} "logout"]
-   (if (or (<- :get :show-menu)
-           (<- :get :edit-item))
-     [add-form]
-     [:div {:style (merge (s :bg-status0 :f3 :pa2)
-                          {:position "fixed"
-                           :bottom 0
-                           :right 0})
-            :on-click #(! :assoc :show-menu true :edit-item nil :temp-item nil)}
-      "add" [:br] "to list"])
-   #_[:div {:style (merge (s :w100)
-                          {:position "fixed"
-                           :top 0})}
-      [:div {:style (merge (s :fdr :w100)
-                           {:display "flex"})}
-       [:input {:style (s :f3 :pa2 :w100)
-                :type "email"
-                :id "new-item"
-                :name "new-item"
-                :value (<- :get :temp-item)
-                :placeholder "enter a new item"
-                :on-change #(! :assoc :temp-item (-> % .-target .-value))}]
-       
-       [:button {:style (s :bg-brand0)
-                 :on-click #(! :firestore-add-item)} "add"]
-       [:a.border-menu {:style (s :f2 :ml2)
-                        :on-click #(! :assoc :show-menu true)}]]
-      (when (<- :get :show-menu)
-        [:div {:style (merge (s :bg-status0)
-                             {:height "50vh"})}
-         [:a {:on-click #(! :assoc :show-menu nil)}
-          "close"]])
-      ]])
+   
+   [:div {:style (s :pa3 :mt5 {:display "block"})}
+    [button {:on-click #(! :sign-out)} "logout"]]])
 
 (defn main-panel []  
-  [:div {:style (merge (s  :bg-ui1 :pb7)
-                       {:max-width 600
-                        :min-height "100vh"
-                        :margin "0 auto"})}
-   [:p {:style (s :f2 :pb2)} "LocaList  " (<- :get :profile)]
-   [:p {:style (s :f3 :pb2)} "Corona Community Response"]
-   [:p {:style (s :f4 :pb2)} "Supporting volunteer home delivery groups and local communities"]
-   (if (<- :get :user)
-       [logged-in]
-       [login-create-account])])
+  [:<>
+   [:div {:style (s :fg1)}]
+   [:div {:style (merge (s  :bg-ui1 :pb7 :fg1)
+                        {:max-width 700
+                         :min-height "100vh"
+                         :display "block"
+                         :margin "0 0"})}
+    [:div {:style (s :flex :fdr :tl :jcsb :bg-ui0)}
+     [:div 
+      [:p {:style (s :f4 :pl2 :pt2 :fwb :white)} "LocaList"]
+      [:p {:style (s :pl2 :pb2 :status1)}  
+       "Ashburton"]]
+     [:p {:style (s :f5 :pa2 :tr :ui1)} "Corona Community" [:br] "Response"]]
+     [:p {:style (s :f6  :tc :pt1 :pb2 :bg-brand0 :ui1)} "supporting volunteer home delivery groups and local communities"]
+    (if (<- :get :user)
+      [logged-in]
+      [login-create-account])]
+   [:div {:style (s :fg1)}]])

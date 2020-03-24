@@ -316,17 +316,27 @@
   [opts]
   (let [tachyons (tachyons opts)]
     (fn [& coll]
-      (let [f (fn [x] (if-let [m (get tachyons x)]
+      (let [coll (vec coll)
+            last-item (last coll)
+            merge-other-styles? (map? last-item)
+            coll (if merge-other-styles?
+                   (pop coll)
+                   coll)            
+            f (fn [x] (if-let [m (get tachyons x)]
                         m
-                        (do (println (str "Style " x " not found")) nil)))]
-        (-> (reduce merge (map f coll))
-            (scale-line-height))))))
+                        (do (println (str "Style " x " not found")) nil)))
+            res (-> (reduce merge (map f coll))
+                    (scale-line-height))]
+        (if merge-other-styles?
+          (merge res last-item)
+          res)))))
 
 ;; example usage
 (def s (init
         {:palette {:ui0 "#333344"
                    :ui1 "#DDDDCC"
-                   :brand0 "#888844"
+                   :white "#FFFFFF"
+                   :brand0 "#778877"
                    :brand1 "#202033"
                    :status0 "#5b9851"
                    :status1 "#f5a623"
