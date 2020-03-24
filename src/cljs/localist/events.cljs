@@ -78,7 +78,7 @@
  (fn [{:keys [db]} _]
    (let [{:keys [user temp-name temp-address temp-phone temp-dropoff temp-postcode]} db
          {:keys [uid]} user]
-     {:firestore/update {:path [:users uid]
+     {:firestore/set {:path [:users uid]
                          :data (merge (when temp-name {"name" temp-name})
                                       (when temp-address {"address" temp-address})
                                       (when temp-phone {"phone" temp-phone})

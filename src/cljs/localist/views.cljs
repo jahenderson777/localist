@@ -13,7 +13,7 @@
   (dispatch (vec v)))
 
 (defn button [props text]
-  [:button (merge {:style (s :pa3 :mb3)}
+  [:button (merge {:style (s :pa3 :mb3 :white)}
                   props) 
    text])
 
@@ -44,9 +44,10 @@
       [login-input {:id "Email" :db-key :temp-email :type "email" :size 24}]
       [login-input {:id "Password" :db-key :temp-password :type "password" :size 24}]
       
-      [:div [button {:on-click #(! :sign-in-by-email)}
-             "Login"]
-       [:a {:style {:padding 10 :font-size 14 :text-decoration "underline" :cursor "pointer"} :on-click #(! :send-password-reset-email)} "forgot password?"]]
+      [:div {:style (s :ma3)}
+       [button {:on-click #(! :sign-in-by-email)}
+        "Login"]
+       [:a {:style (s :ml3 {:padding 10 :font-size 14 :text-decoration "underline" :cursor "pointer"}) :on-click #(! :send-password-reset-email)} "forgot password?"]]
       [:div {:style (s :mt3)}
        ;[:div {:style (s :mb3)} "or"]
        [:a {:style {:text-decoration "underline" :cursor "pointer"} :on-click #(! :assoc :show-login-account false)} "Create an account with your email address"]]]
@@ -131,8 +132,10 @@
 (defn my-account-field [data field-name editing? & [last?]]
   [:div {:style (s (when-not last? :mr2))}
    [:div {:style (s :tl {:display "inline-block"})}
-    [:div {:style (s :pl1 :f7 :fwb :brand0)}
-     (clojure.string/capitalize field-name)]
+    [:div {:style (s :pl1 :pr1 :f6 :brand0)}
+     (if (= field-name "dropoff")
+       "Drop-off place/notes"
+       (clojure.string/capitalize field-name))]
     (if editing?
       (let [kw (keyword (str "temp-" field-name))]
         [(if (#{"address" "dropoff"} field-name) 
@@ -162,7 +165,7 @@
         editing? (<- :get :edit-account)]
     [:div 
      [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80)}
-      "My account"]
+      "Account details"]
 
      [:div {:style (s (if editing? :tc :tl) 
                       (when-not editing? :flex) 
@@ -193,27 +196,29 @@
      ]))
 
 (defn logged-in []
-  [:div
-   (when-let [name (:display-name (<- :get :user))]
-     [:p {:style (s :pb3 :pt3)} (str "Welcome " name)])
-   [my-account]
-   [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80)}
-    "My shopping list"]
-   [:p {:style (s :f6 :brand0)} "[click an item to edit/delete]"]
-   [:div {:style (s :pb1)}
-    (doall (for [item (:docs (<- :firestore/on-snapshot {:path-collection [:users (<- :get :user :uid) :my-list]
-                                                         :order-by [[:timestamp :asc]]}))]
-             ^{:key (:id item)}
-             [:div {:style (s :mt2 :mb1)}
-              (if (= (:id item)
-                     (:id (<- :get :edit-item)))                
-                [add-form true]
-                [item-block item])]))]
-   [add-form false]
-   
-   
-   [:div {:style (s :pa3 :mt5 {:display "block"})}
-    [button {:on-click #(! :sign-out)} "logout"]]])
+  (let [docs (:docs (<- :firestore/on-snapshot {:path-collection [:users (<- :get :user :uid) :my-list]
+                                                :order-by [[:timestamp :asc]]}))]
+    [:div
+     #_(when-let [name (:display-name (<- :get :user))]
+       [:p {:style (s :pb3 :pt3)} (str "Welcome " name)])
+     [my-account]
+     [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80 :btw1 :b-ui0 {:border-top "1px solid grey"})}
+      "Shopping List"]
+     (when (seq docs)
+       [:p {:style (s :f6 :brand0)} "[click an item to edit/delete]"])
+     [:div {:style (s :pb1)}
+      (doall (for [item docs]
+               ^{:key (:id item)}
+               [:div {:style (s :mt2 :mb1)}
+                (if (= (:id item)
+                       (:id (<- :get :edit-item)))                
+                  [add-form true]
+                  [item-block item])]))]
+     [add-form false]
+     
+     
+     [:div {:style (s :pa3 :mt5 {:display "block"})}
+      [button {:on-click #(! :sign-out)} "logout"]]]))
 
 (defn main-panel []  
   [:<>
