@@ -78,7 +78,7 @@
       (.setCustomParameters auth-provider (clj->js custom-parameters)))
 
     (-> (.auth firebase)
-        (.signInWithPopup auth-provider)
+        (.signInWithRedirect auth-provider)
         (.then (partial maybe-link-with-credential link-with-credential))
         (.catch (core/default-error-handler)))
     #_(>evt [(core/default-error-handler)

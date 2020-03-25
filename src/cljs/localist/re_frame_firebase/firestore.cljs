@@ -283,7 +283,7 @@
   (as-> ref $
     (if where
       (reduce
-        (fn [$$ [field-path op value]] (.where $$ (clj->FieldPath field-path) (clj->js op) (clj->js value)))
+        (fn [$$ [field-path op value]] (.where $$ field-path (clj->js op) (clj->js value)))
         $ where)
       $)
     (if order-by

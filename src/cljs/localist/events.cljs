@@ -101,6 +101,11 @@
                          :on-failure #(prn "Error:" %)}
       :db (dissoc db :edit-item :temp-item)})))
 
+(reg-event-fx
+ :firestore-get
+ (fn [{:keys [db]} [_ query]]
+   {:firestore/get query}))
+
 #_(reg-event-fx
  :firestore-delete-item
  (fn [{:keys [db]} [_ id]]

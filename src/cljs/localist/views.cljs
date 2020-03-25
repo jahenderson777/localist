@@ -140,19 +140,22 @@
        [:pre
         (get data field-name)]])]])
 
-(defn account-details [uid]
-  (let [data (:data (<- :firestore/on-snapshot {:path-document [:users uid]}))
-        editing? (= uid (<- :get :edit-account))]
+(defn account-details [uid data & [other?]]
+  (let [editing? (= uid (<- :get :edit-account))
+        admin? (get data "admin")]
     [:div 
-     [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80)}
-      "Account details"]
+     (if other?
+       [:div {:style (s :f3 :mb2 :mt4 :pt2 :pb2 :fwb :white :bg-brand0 :o80)}
+        (get data "name")]
+       [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80)}
+        "Account details"])
      [:div {:style (s (if editing? :tc :tl) 
                       (when-not editing? :flex) 
                       :jcsb)}
       [:div 
-       [my-account-field data "name" editing?]
+       (when (or (not other?) editing?) [my-account-field data "name" editing?])
        [my-account-field data "phone" editing?]
-       [my-account-field data "balance" editing?]]
+       (when (or (not editing?) admin?) [my-account-field data "balance" editing?])]
       [:div
        [my-account-field data "address" editing?]
        [my-account-field data "postcode" editing?]]
@@ -211,25 +214,28 @@
 
 (defn logged-in []
   (let [my-uid (<- :get :user :uid)
-        
-        users (:docs (<- :firestore/on-snapshot {:path-collection [:users]
-                                                ; :where [[:community-id := "CA"]]
+        me (:data (<- :firestore/on-snapshot {:path-document [:users my-uid]}))
+        admin? (get me "admin")
+        users (if admin?
+                (:docs (<- :firestore/on-snapshot {:path-collection [:users]
+                                                 ;:where [["shopper" :== "test"]]
                                                  ;:order-by [[:timestamp :asc]]
-                                                 }))]
+                                                   }))
+                [])]
+    (cljs.pprint/pprint users)
     [:div
      #_(when-let [name (:display-name (<- :get :user))]
          [:p {:style (s :pb3 :pt3)} (str "Welcome " name)])
      [:div
-      [account-details my-uid]
+      [account-details my-uid me]
       [add-credit my-uid]
       [item-list my-uid :shopping "Shopping List"]
                ;[item-list id :surplus "Surplus"]
       ]
-     (doall (for [{:keys [id]} users
+     (doall (for [{:keys [id] :as user} users
                   :when (not= id my-uid)]
-              [:div
-               [:hr]
-               [account-details id]
+              [:div           
+               [account-details id (:data user) true]
                [item-list id :shopping "Shopping List"]
                ;[item-list id :surplus "Surplus"]
                ]))
