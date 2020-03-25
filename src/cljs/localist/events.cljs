@@ -52,48 +52,51 @@
 
 (reg-event-fx
  :firestore-add-item
- (fn [{:keys [db]} _]
-   (let [{:keys [user temp-item-new]} db
-         {:keys [uid]} user]
-     {:firestore/add {:path [:users uid :my-list]
+ (fn [{:keys [db]} [_ uid prefix]]
+   (let [{:keys [user]} db
+         temp-item-kw (keyword prefix (str "temp-item-new-" uid))
+         temp-item (get db temp-item-kw)]
+     (println [:users uid prefix])
+     {:firestore/add {:path [:users uid prefix]
                       :data {:timestamp (firestore/server-timestamp)
-                             :item temp-item-new}
-                      :on-success [:assoc :temp-item-new nil]
+                             ;:user (firestore/clj->DocumentReference ["users" uid])
+                             ;:type prefix
+                             :item temp-item}
+                      :on-success [:assoc temp-item-kw nil]
                       :on-failure #(prn "Error:" %)}
-      :db (dissoc db :edit-item :temp-item-new :show-menu)})))
+      :db (dissoc db :edit-item temp-item-kw :show-menu)})))
 
 (reg-event-fx
  :firestore-update-item
- (fn [{:keys [db]} _]
-   (let [{:keys [user temp-item edit-item]} db
-         {:keys [uid]} user]
-     {:firestore/update {:path [:users uid :my-list (:id edit-item)]
+ (fn [{:keys [db]} [_ uid prefix]]
+   (let [{:keys [user edit-item]} db
+         temp-item-kw (keyword prefix (str "temp-item-" uid))
+         temp-item (get db temp-item-kw)]
+     {:firestore/update {:path [:users uid prefix (:id edit-item)]
                       :data (assoc (:data edit-item)
                                    :item temp-item) 
-                      :on-success [:assoc :temp-item nil :edit-item nil]
+                      :on-success [:assoc temp-item-kw nil :edit-item nil]
                       :on-failure #(prn "Error:" %)}})))
 
 (reg-event-fx
  :account-edit-save
  (fn [{:keys [db]} _]
-   (let [{:keys [user temp-name temp-address temp-phone temp-dropoff temp-postcode]} db
-         {:keys [uid]} user]
-     {:firestore/set {:path [:users uid]
+   (let [{:keys [edit-account temp-name temp-address temp-phone temp-dropoff temp-postcode]} db]
+     {:firestore/set {:path [:users edit-account]
                          :data (merge (when temp-name {"name" temp-name})
                                       (when temp-address {"address" temp-address})
                                       (when temp-phone {"phone" temp-phone})
                                       (when temp-dropoff {"dropoff" temp-dropoff})
                                       (when temp-postcode {"postcode" temp-postcode})
-                                      ) 
+                                      )
                          :on-success [:assoc :edit-account nil]
                          :on-failure #(prn "Error:" %)}})))
 
 (reg-event-fx
  :firestore-delete-item
- (fn [{:keys [db]} _]
-   (let [{:keys [user temp-item edit-item]} db
-         {:keys [uid]} user]
-     {:firestore/delete {:path [:users uid :my-list (:id edit-item)]
+ (fn [{:keys [db]} [_ uid prefix]]
+   (let [{:keys [user temp-item edit-item]} db]
+     {:firestore/delete {:path [:users uid prefix (:id edit-item)]
                          ;:on-success [:assoc :temp-item nil :edit-item nil]
                          :on-failure #(prn "Error:" %)}
       :db (dissoc db :edit-item :temp-item)})))

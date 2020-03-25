@@ -1,5 +1,6 @@
 (ns localist.subs
   (:require
+   [localist.re-frame-firebase.firestore :as firestore]
    [re-frame.core :as re-frame :refer [reg-sub]]))
 
 (reg-sub
@@ -12,11 +13,13 @@
  (fn [db [_ & path]]
    (get-in db path)))
 
-#_(reg-sub
- :name-firestore
- :<- [:get :user :uid]
- (fn [{:keys [user]} _]
-   (let [{:keys [uid]} user]
-     (re-frame/subscribe [:firestore/on-snapshot {:path-document [:users uid :my-list]}])))
- (fn [value _]
-   (with-out-str (cljs.pprint/pprint (:data value)))))
+(reg-sub
+ :shopping
+ :<- [:firestore/on-snapshot {:path-collection ["communities" "ashburton" "items"]}]
+ (fn [query-result _]
+   (let [docs (:docs query-result)
+         docs (map :data docs)
+         docs (map (fn [doc] (update doc "user" #(second (firestore/PathReference->clj %))))
+                   docs)]
+     (into (sorted-map) (group-by (fn [doc] [(get doc "user")
+                                             (get doc "type")]) docs)))))

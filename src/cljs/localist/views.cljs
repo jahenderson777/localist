@@ -35,23 +35,17 @@
    [button {:on-click #(firebase-auth/facebook-sign-in {})}
     "Login with Facebook"]
    [:hr]
-
    (if (<- :get :show-login-account)
      [:div
       [:p {:style (s :ma4)} "Login with an account you have already created..."]
-
-      
       [login-input {:id "Email" :db-key :temp-email :type "email" :size 24}]
       [login-input {:id "Password" :db-key :temp-password :type "password" :size 24}]
-      
       [:div {:style (s :ma3)}
        [button {:on-click #(! :sign-in-by-email)}
         "Login"]
        [:a {:style (s :ml3 {:padding 10 :font-size 14 :text-decoration "underline" :cursor "pointer"}) :on-click #(! :send-password-reset-email)} "forgot password?"]]
       [:div {:style (s :mt3)}
-       ;[:div {:style (s :mb3)} "or"]
        [:a {:style {:text-decoration "underline" :cursor "pointer"} :on-click #(! :assoc :show-login-account false)} "Create an account with your email address"]]]
-
      [:div
       [:p {:style (s :ma4)} "Don't have Facebook? Create an account with your email..."]
 
@@ -63,13 +57,11 @@
        [button {:on-click #(! :create-by-email)}
         "Create account"]]
       [:div {:style (s :mt3)}
-       ;[:div {:style (s :mb3)} "or"]
        [:a {:style {:text-decoration "underline" :cursor "pointer"} :on-click #(! :assoc :show-login-account true)} "Login with an existing account"]]])])
-
 
 (def input-ref (atom nil))
 
-(defn add-form [is-edit?]
+(defn add-form [uid prefix is-edit?]
   (let [submit-event (if is-edit? 
                        :firestore-update-item
                        :firestore-add-item)
@@ -77,19 +69,13 @@
                       "save"
                       "add")
         temp-item (if is-edit?
-                    :temp-item
-                    :temp-item-new)]
-    [:div {:style (merge (s :flex :bg-status1 :f5 :fdc)
-                         {;:max-width 700
-                          ;:position "fixed"
-                          ;:width "95%"
-                          ;:bottom 0
-                          })}
-     
+                    (keyword prefix (str "temp-item-" uid))
+                    (keyword prefix (str "temp-item-new-" uid)))]
+    [:div {:style (merge (s :flex :bg-status1 :f5 :fdc))}
      [:div {:style (s :flex :fdr
                       {:max-width "100%"
                        :min-width "100%"})}
-      [:input {:style (s :f5 :ma2 :fg1 :w4 :pl2)
+      [:input {:style (s :f4 :ma2 :fg1 :w4 :pl2)
                :type "text"
                :id "new-item"
                :name "new-item"
@@ -99,35 +85,33 @@
                :value (<- :get temp-item)
                :placeholder "enter a new item"
                :on-key-press (fn [e]
-                               (js/console.log e)
                                (when (= 13 (.-charCode e))
                                  (.blur @input-ref)
-                                 (! submit-event)))
+                                 (! submit-event uid prefix)))
                :on-change #(! :assoc temp-item (-> % .-target .-value))}]
       [:div
        [:button {:style (s :bg-status0 :white :pa2 :mt2 :mr2 :mb2 :fs0)
-                 :on-click #(! submit-event)} submit-text]]]
+                 :on-click #(! submit-event uid prefix)} submit-text]]]
      [:div {:style (s :flex :fdr :jcsa)}
       (when is-edit?
         [:<>
          [:a {:style (s :ma3)
-              :on-click #(! :firestore-delete-item)}
+              :on-click #(! :firestore-delete-item uid prefix)}
           "delete"]
          [:a {:style (s :ma3)
               :on-click #(! :assoc :show-menu nil :edit-item nil)}
           "cancel"]])]]))
 
-(defn item-block [item]
+(defn item-block [uid prefix item]
   (let [data (:data item)
-        id (:id item)
+        temp-item (keyword prefix (str "temp-item-" uid))
         txt (get data "item")]
     [:div {:style (merge (s :pa2 :bg-status1 :tl :fdr :o80)
                          {:display "flex"
                           :min-height 20
                           :cursor "pointer"})
-           :on-click #(! :assoc :edit-item item :temp-item txt)}
-     [:div {:style (s )}
-      txt]]))
+           :on-click #(! :assoc :edit-item item temp-item txt)}
+     [:div txt]]))
 
 (defn my-account-field [data field-name editing? & [last?]]
   [:div {:style (s (when-not last? :mr2))}
@@ -140,7 +124,7 @@
       (let [kw (keyword (str "temp-" field-name))]
         [(if (#{"address" "dropoff"} field-name) 
            :textarea
-           :input) {:style (s :f5 :mb2 :mt1 :pl2 
+           :input) {:style (s :f4 :mb2 :mt1 :pl2 
                               {:width 300})
                     :type "text"
                     :id field-name
@@ -156,23 +140,19 @@
        [:pre
         (get data field-name)]])]])
 
-(defn my-account []
-  (let [data (:data (<- :firestore/on-snapshot {:path-document [:users (<- :get :user :uid)]}))
-        name (get data "name")
-        phone (get data "phone")
-        address (get data "address")
-        postcode (get data "postcode")
-        editing? (<- :get :edit-account)]
+(defn account-details [uid]
+  (let [data (:data (<- :firestore/on-snapshot {:path-document [:users uid]}))
+        editing? (= uid (<- :get :edit-account))]
     [:div 
      [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80)}
       "Account details"]
-
      [:div {:style (s (if editing? :tc :tl) 
                       (when-not editing? :flex) 
                       :jcsb)}
       [:div 
        [my-account-field data "name" editing?]
-       [my-account-field data "phone" editing?]]
+       [my-account-field data "phone" editing?]
+       [my-account-field data "balance" editing?]]
       [:div
        [my-account-field data "address" editing?]
        [my-account-field data "postcode" editing?]]
@@ -180,10 +160,8 @@
        [my-account-field data "dropoff" editing? (not editing?)]
        (when-not editing?
          [:div {:style (s :tc)}
-          [:a {:on-click #(! :assoc :edit-account true)}
-           "edit"]])]
-      ]
-     
+          [:a {:on-click #(! :assoc :edit-account uid)}
+           "edit"]])]]
      (when editing?
        [:<> 
         [:div
@@ -191,32 +169,70 @@
                    :on-click #(! :account-edit-save)} "save"]]
         [:div {:style (s :ma3)} 
          [:a {:on-click #(! :assoc :edit-account false)}
-          "cancel"]]]
-       )
-     ]))
+          "cancel"]]])]))
+
+(defn item-list [uid prefix text]
+  (let [me (<- :get :user :uid)
+        docs (:docs (<- :firestore/on-snapshot {:path-collection [:users uid prefix]
+                                                :order-by [[:timestamp :asc]]}))]
+   [:div
+    [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80 ;:btw1 :b-ui0 {:border-top "1px solid grey"}
+                     )}
+     text]
+    (when (and (seq docs)
+               (= uid me))
+      [:p {:style (s :f6 :brand0)} "[click an item to edit/delete]"])
+    [:div {:style (s :pb1)}
+     (doall (for [item docs]
+              ^{:key (:id item)}
+              [:div {:style (s :mt2 :mb1)}
+               (if (= (:id item)
+                      (:id (<- :get :edit-item)))
+                 [add-form uid prefix true]
+                 [item-block uid prefix item])]))]
+    [add-form uid prefix false]]))
+
+(defn add-credit [uid]
+  [:div 
+   [:form {:action "https://europe-west2-localist-e864f.cloudfunctions.net/pay" :method "POST" :id "paypal-form"}
+    [:input {:type "hidden" :name "uid" :value uid}]
+    ;[:input {:type "text" :name "price" :value "0.01" :pattern "-?[0-9]*(\\.[0-9]+)?"}]
+    [:select {:style (s :pa2)
+              :id "price" :name "price"}
+     [:option {:value "0.01"} "0.01"]
+     [:option {:value "5.00"} "5.00"]
+     [:option {:value "10.00"} "10.00"]
+     [:option {:value "20.00"} "20.00"]
+     [:option {:value "40.00"} "40.00"]
+     [:option {:value "60.00"} "60.00"]]
+    [:button {:style (s :pa2 :ml2 :white)
+              :form "paypal-form" :type "submit" :value "Add Credit"}
+     "Add Credit"]]])
 
 (defn logged-in []
-  (let [docs (:docs (<- :firestore/on-snapshot {:path-collection [:users (<- :get :user :uid) :my-list]
-                                                :order-by [[:timestamp :asc]]}))]
+  (let [my-uid (<- :get :user :uid)
+        
+        users (:docs (<- :firestore/on-snapshot {:path-collection [:users]
+                                                ; :where [[:community-id := "CA"]]
+                                                 ;:order-by [[:timestamp :asc]]
+                                                 }))]
     [:div
      #_(when-let [name (:display-name (<- :get :user))]
-       [:p {:style (s :pb3 :pt3)} (str "Welcome " name)])
-     [my-account]
-     [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80 :btw1 :b-ui0 {:border-top "1px solid grey"})}
-      "Shopping List"]
-     (when (seq docs)
-       [:p {:style (s :f6 :brand0)} "[click an item to edit/delete]"])
-     [:div {:style (s :pb1)}
-      (doall (for [item docs]
-               ^{:key (:id item)}
-               [:div {:style (s :mt2 :mb1)}
-                (if (= (:id item)
-                       (:id (<- :get :edit-item)))                
-                  [add-form true]
-                  [item-block item])]))]
-     [add-form false]
-     
-     
+         [:p {:style (s :pb3 :pt3)} (str "Welcome " name)])
+     [:div
+      [account-details my-uid]
+      [add-credit my-uid]
+      [item-list my-uid :shopping "Shopping List"]
+               ;[item-list id :surplus "Surplus"]
+      ]
+     (doall (for [{:keys [id]} users
+                  :when (not= id my-uid)]
+              [:div
+               [:hr]
+               [account-details id]
+               [item-list id :shopping "Shopping List"]
+               ;[item-list id :surplus "Surplus"]
+               ]))
      [:div {:style (s :pa3 :mt5 {:display "block"})}
       [button {:on-click #(! :sign-out)} "logout"]]]))
 

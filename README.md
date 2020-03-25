@@ -218,3 +218,27 @@ development versions of the files in this directory.
 ## created with
 
 lein new re-frame localist +cider
+
+
+## how things are structured
+
+
+
+commmunities
+  Ashburton (name, admin-uid, notes, pick-up point, paypal account)
+    volunteers
+      uid-of-Anna
+users
+  uid-of-Jonathan (community-id, name, address, can pick-up, notes, account balance, volunteer-allocated-uid
+                    is-shop?, opening-times)
+    shopping
+      cheese (alternative, preferred-shop, *unavailable, *aquired)
+      eggs
+    surplus
+      flour (is-public?)
+      potatoes
+
+on first login account details are blank,
+show a form to add your details,
+if we have a community-id in the url use that,
+else ask to select a community or to create a new one.
