@@ -175,6 +175,7 @@
      {:firestore/add {:path [:users uid :transactions]
                       :data {:timestamp (firestore/server-timestamp)
                              :receipt-url receipt-url
+                             :transaction-amount (* -1 transaction-amount)
                              ;:user (firestore/clj->DocumentReference ["users" uid])
                              ;:type prefix
                              ;:item temp-item

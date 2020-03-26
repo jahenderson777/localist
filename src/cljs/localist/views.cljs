@@ -326,6 +326,8 @@
                                             :src (get (:data tr) "receipt-url")}])}
                    (when-let [ts (get (:data tr) "timestamp")]
                      (.toLocaleString (.toDate ts)))]
+                  [:span {:style (s :fwb :pa2)}
+                   (str "£" (get (:data tr) "transaction-amount"))]
                   (for [i (get items (:id tr))]
                     ^{:key (:id i)}
                     [:span {:style (s :pa2)}
@@ -434,15 +436,15 @@
          (doall (for [{:keys [id data]} shops]
                   ^{:key id}
                   [:div {:style (s :tc :mb4)}
-                   [:div {:style (s :tl :pb2 
+                   [:div {:style (s :tl :pa2 
                                     {:max-width 500
                                      :margin "auto"
                                      :border-bottom "1px solid grey"})}
                     [:div {:style (s :tc :f3 :pb2 :pt3 :fwb :ui0 :o80)}
                      (get data "shop-name")]
-                    [:div {:style (s :pl1 :pr1 :f6 :brand0 :mb2)} "Opening times"]
+                    [:div {:style (s :f6 :brand0 :mb2)} "Opening times"]
                     [:div  (get data "opening-times")]
-                    [:div {:style (s :pl1 :pr1 :f6 :brand0 :mb2 :mt3)}  "Info"]
+                    [:div {:style (s :f6 :brand0 :mb2 :mt3)}  "Info"]
                     [:div  (get data "info")]
                     ]]))])
       (if (<- :get :user)
