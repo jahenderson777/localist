@@ -4,6 +4,7 @@
    [localist.subs :as subs]
    [localist.style :refer [s]]
    [localist.re-frame-firebase.auth :as firebase-auth]
+   [localist.re-frame-firebase.storage :as storage]
    ))
 
 (defn <- [& v]
@@ -102,16 +103,22 @@
               :on-click #(! :assoc :show-menu nil :edit-item nil)}
           "cancel"]])]]))
 
-(defn item-block [uid prefix item]
+(defn item-block [uid prefix item checked]
   (let [data (:data item)
         temp-item (keyword prefix (str "temp-item-" uid))
         txt (get data "item")]
-    [:div {:style (merge (s :pa2 :bg-status1 :tl :fdr :o80)
+    [:div {:style (merge (s :pa2 :bg-status1 :tl :fdr :o80 :jcsb)
                          {:display "flex"
                           :min-height 20
-                          :cursor "pointer"})
-           :on-click #(! :assoc :edit-item item temp-item txt)}
-     [:div txt]]))
+                          :cursor "pointer"})}
+     [:div {:style (s :w2)
+            :on-click #(! :assoc :edit-item item temp-item txt)}
+      txt]
+     [:input {:style (s :w2 :h2 :bg-status2)
+              :checked (boolean checked)
+              :on-change (fn [e]
+                           (! :toggle-checked (:id item)))
+              :type "checkbox"}]]))
 
 (defn my-account-field [data field-name editing? & [last?]]
   [:div {:style (s (when-not last? :mr2))}
@@ -174,8 +181,10 @@
          [:a {:on-click #(! :assoc :edit-account false)}
           "cancel"]]])]))
 
+
 (defn item-list [uid prefix text]
   (let [me (<- :get :user :uid)
+        checked-items (<- :get :checked-items)
         docs (:docs (<- :firestore/on-snapshot {:path-collection [:users uid prefix]
                                                 :order-by [[:timestamp :asc]]}))]
    [:div
@@ -192,8 +201,9 @@
                (if (= (:id item)
                       (:id (<- :get :edit-item)))
                  [add-form uid prefix true]
-                 [item-block uid prefix item])]))]
+                 [item-block uid prefix item (checked-items (:id item))])]))]
     [add-form uid prefix false]]))
+
 
 (defn add-credit [uid]
   [:div 
@@ -212,6 +222,29 @@
               :form "paypal-form" :type "submit" :value "Add Credit"}
      "Add Credit"]]])
 
+(defn image-uploader []
+  (let [ref (atom nil)
+        upload-progress (<- :get :upload-progress)]
+    [:div {:style (s :pa2)}
+     (if upload-progress
+       [:div (str "uploading " (int upload-progress) "%")]
+       [:div
+        [:input {:style (s :fg1 :f5 {:max-width 200})
+                 :type "file" 
+                 :ref (fn [el]
+                        (reset! ref el))
+                 :accept "image/*"}]
+        [:button {:style (s :white :pa2)
+                  :on-click (fn []
+                              (let [f (aget (.-files @ref) 0)]
+                                (when f
+                                  (! :upload {:file f
+                                              :on-complete (fn [url]
+                                                             (println url)
+                                                             (! :assoc :upload-progress nil))
+                                              :on-progress #(! :assoc :upload-progress %)}))))}
+         "upload"]])]))
+
 (defn logged-in []
   (let [my-uid (<- :get :user :uid)
         me (:data (<- :firestore/on-snapshot {:path-document [:users my-uid]}))
@@ -222,11 +255,12 @@
                                                  ;:order-by [[:timestamp :asc]]
                                                    }))
                 [])]
-    (cljs.pprint/pprint users)
+    ;(cljs.pprint/pprint users)
     [:div
      #_(when-let [name (:display-name (<- :get :user))]
          [:p {:style (s :pb3 :pt3)} (str "Welcome " name)])
      [:div
+      
       [account-details my-uid me]
       [add-credit my-uid]
       [item-list my-uid :shopping "Shopping List"]
@@ -234,10 +268,11 @@
       ]
      (doall (for [{:keys [id] :as user} users
                   :when (not= id my-uid)]
-              [:div           
+              [:div
                [account-details id (:data user) true]
                [item-list id :shopping "Shopping List"]
                ;[item-list id :surplus "Surplus"]
+               [image-uploader]
                ]))
      [:div {:style (s :pa3 :mt5 {:display "block"})}
       [button {:on-click #(! :sign-out)} "logout"]]]))

@@ -11,6 +11,7 @@
    [localist.re-frame-firebase.core :as core]
    [localist.re-frame-firebase.auth :as auth]
    [localist.re-frame-firebase.database :as database]
+   [localist.re-frame-firebase.storage :as storage]
    [localist.re-frame-firebase.firestore :as firestore]))
 
 ;;; Write a value to Firebase.
@@ -198,6 +199,9 @@
 (re-frame/reg-fx :firebase/sign-out auth/sign-out)
 
 
+
+(re-frame/reg-fx :firebase/upload storage/upload)
+
 ;;; Monitor connection status
 ;;;
 (re-frame/reg-sub
@@ -348,6 +352,8 @@
 ;;; - :on-error
 ;;;
 (re-frame/reg-fx :firestore/on-snapshot firestore/on-snapshot-effect)
+
+
 
 
 ;;; Subscribe to a Firestore collection/document query.

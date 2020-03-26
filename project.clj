@@ -7,6 +7,7 @@
                  [thheller/shadow-cljs "2.8.93"]
                  [com.degel/iron "0.4.0"]
                  [clj-commons/secretary "1.2.4"]
+                 [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  ;[cljsjs/firebase "7.5.0-0"]
                  ;[cljsjs/firebase "7.1.0-1"]
                  [reagent "0.9.1"]

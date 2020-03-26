@@ -316,20 +316,21 @@
   [opts]
   (let [tachyons (tachyons opts)]
     (fn [& coll]
-      (let [coll (vec coll)
-            last-item (last coll)
-            merge-other-styles? (map? last-item)
-            coll (if merge-other-styles?
-                   (pop coll)
-                   coll)            
-            f (fn [x] (if-let [m (get tachyons x)]
-                        m
-                        (do (println (str "Style " x " not found")) nil)))
-            res (-> (reduce merge (map f coll))
-                    (scale-line-height))]
-        (if merge-other-styles?
-          (merge res last-item)
-          res)))))
+      (when-let [coll (remove nil? (seq coll))]        
+        (let [coll (vec coll)
+              last-item (last coll)
+              merge-other-styles? (map? last-item)
+              coll (if merge-other-styles?
+                     (pop coll)
+                     coll)            
+              f (fn [x] (if-let [m (get tachyons x)]
+                          m
+                          (do (println (str "Style " x " not found")) nil)))
+              res (-> (reduce merge (map f coll))
+                      (scale-line-height))]
+          (if merge-other-styles?
+            (merge res last-item)
+            res))))))
 
 ;; example usage
 (def s (init

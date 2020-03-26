@@ -34,6 +34,14 @@
  (fn [db [_ user]]
    (assoc db :user user)))
 
+(reg-event-db
+ :toggle-checked
+ (fn [db [_ id]]
+   (update db :checked-items (fn [checked-items]
+                               (if (contains? checked-items id)
+                                 (disj checked-items id)
+                                 (conj checked-items id))))))
+
 (reg-event-fx
  :create-by-email
  (fn [{:keys [db]} _]
@@ -105,6 +113,11 @@
  :firestore-get
  (fn [{:keys [db]} [_ query]]
    {:firestore/get query}))
+
+(reg-event-fx
+ :upload
+ (fn [{:keys [db]} [_ opts]]
+   {:firebase/upload opts}))
 
 #_(reg-event-fx
  :firestore-delete-item
