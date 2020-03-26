@@ -18,8 +18,9 @@
                   props) 
    text])
 
-(defn login-input [{:keys [id db-key type size]}]
-  (let [val (<- :get db-key)]
+(defn login-input [{:keys [id db-key type size on-return]}]
+  (let [val (<- :get db-key)
+        ref (atom nil)]
     [:div {:style (merge (s :pa2)
                          {:display "block"})}
      [:input {:style (s :f3 :pa2)
@@ -29,12 +30,37 @@
               :size (or size 23)              
               :default-value val
               :placeholder id
+              :ref #(reset! ref %)
+              :on-key-press (fn [e]
+                              (when (= 13 (.-charCode e))
+                                (.blur @ref)
+                                (when on-return
+                                  (on-return))))
               :on-change #(! :assoc db-key (-> % .-target .-value))}]]))
 
 (defn login-create-account []
   [:div {:style (s :tc :pt4 )}    
-   [button {:on-click #(firebase-auth/facebook-sign-in {})}
-    "Login with Facebook"]
+   #_[button {:on-click #(firebase-auth/facebook-sign-in {})}
+      "Login with Facebook"]
+   #_[:hr]
+   (if (<- :get :sms-sent)
+     [:div
+      [:div "Please enter the code we just sent you..."]
+      [login-input {:id "SMS Code" :db-key :temp-sms-code :type "phone" :size 24
+                    :on-return #(! :phone-confirm-code (<- :get :temp-sms-code))}]
+      [button {:on-click #(! :phone-confirm-code (<- :get :temp-sms-code))}
+       "Confirm code"]
+      [:div {:style (s :pa3)}
+       [:a {:on-click #(! :assoc :temp-sms-code nil)}
+        "abort"]]]
+     [:div
+      [login-input {:id "Phone" :db-key :temp-phone :type "phone" :size 24
+                    :on-return #(! :phone-sign-in (<- :get :temp-phone))}]
+      [button {:id "phone-sign-in-button"
+               :on-click #(! :phone-sign-in (<- :get :temp-phone))}
+       "SMS me a login code"]
+      (when-let [msg (<- :get :phone-sign-in-msg)]
+        [:div msg])])
    [:hr]
    (if (<- :get :show-login-account)
      [:div
@@ -48,7 +74,7 @@
       [:div {:style (s :mt3)}
        [:a {:style {:text-decoration "underline" :cursor "pointer"} :on-click #(! :assoc :show-login-account false)} "Create an account with your email address"]]]
      [:div
-      [:p {:style (s :ma4)} "Don't have Facebook? Create an account with your email..."]
+      [:p {:style (s :ma4)} "Or create an account with your email..."]
 
       ;[login-input {:id "Name" :db-key :temp-name :type "text"}]
       [login-input {:id "Email" :db-key :temp-email :type "email"}]
@@ -130,7 +156,7 @@
        (clojure.string/capitalize field-name))]
     (if editing?
       (let [kw (keyword (str "temp-" field-name))]
-        [(if (#{"address" "dropoff"} field-name) 
+        [(if (#{"address" "dropoff" "info"} field-name) 
            :textarea
            :input) {:style (s :f4 :mb2 :mt1 :pl2 
                               {:width 300})
@@ -151,7 +177,9 @@
             )]])]])
 
 (defn account-details [uid data & [admin?]]
-  (let [details-complete? (seq (get data "phone"))
+  (let [details-complete? (seq (get data "address"))
+        shop-doc (:data (<- :firestore/on-snapshot {:path-document [:communities "ashburton" :shops uid]}))
+        has-store? (<- :get :has-store?)
         editing? (or (= uid (<- :get :edit-account))
                      (not details-complete?))
         ;admin? (get data "admin")
@@ -174,13 +202,33 @@
        [my-account-field data "dropoff" editing? (not editing?)]
        (when-not editing?
          [:div {:style (s :tc)}
-          [:a {:on-click #(! :assoc :edit-account uid)}
-           "edit"]])]]
+          [:a {:on-click (fn [] (! :assoc :edit-account uid
+                                   :has-store? (boolean shop-doc)))}
+           "edit"]])]
+      (when editing?
+        [:div {:style (s :mb3 :mt3)}
+         [:label {:style (s :mr2 :pb2 {:position "relative"
+                                       :top -5})
+                  :for "has-store"} "Do you want to a shop listing?"]
+         [:input {:style (s :w2 :h2 :bg-status2)
+                  :checked (boolean has-store?)
+                  :name "has-store"
+                  :id "has-store"
+                  :on-change (fn [e]
+                               (! :assoc :has-store? (not has-store?)))
+                  :type "checkbox"}]])]
+     (when (and has-store? editing?)
+       [:div
+        [my-account-field shop-doc "shop-name" editing?]
+        [my-account-field shop-doc "opening-times" editing?]
+        [my-account-field shop-doc "info" editing?]])
      (when editing?
        [:<> 
         [:div
          [:button {:style (s :bg-status0 :white :pa2 :mt3 :mb3 :fs0)
-                   :on-click #(! :account-edit-save uid)} "save"]]
+                   :on-click (fn [] 
+                               (when (and (not has-store?) shop-doc))(! :firestore-delete-shop uid)
+                               (! :account-edit-save uid))} "save"]]
         (when details-complete?
           [:div {:style (s :ma3)} 
            [:a {:on-click #(! :assoc :edit-account false)}
@@ -235,13 +283,16 @@
         [:input {:style (s :w6)
                  :type "number"
                  :default-value 0
-                 :step 0.01}]
+                 :step 0.01
+                 :value (or (<- :get :transaction-amount)
+                            "0.00")
+                 :on-change #(! :assoc :transaction-amount (-> % .-target .-value))}]
         [:input {:style (s :fg1 :f5 {:max-width 200})
                  :type "file" 
                  :ref (fn [el]
                         (reset! ref el))
                  :accept "image/*"}]
-        [:button {:style (s :white :pa2)
+        [:button {:style (s :white :pa2 :ma2)
                   :on-click (fn []
                               (let [f (aget (.-files @ref) 0)]
                                 (when f
@@ -251,7 +302,7 @@
                                                              (! :assoc :upload-progress nil)
                                                              (! :firestore-add-transaction uid url))
                                               :on-progress #(! :assoc :upload-progress %)}))))}
-         "upload"]])]))
+         "upload receipt"]])]))
 
 
 (defn transaction-list [uid items]
@@ -278,12 +329,12 @@
                   (for [i (get items (:id tr))]
                     ^{:key (:id i)}
                     [:span {:style (s :pa2)}
-                     (get (:data i) "item")])]))]])))
+                     (str (get (:data i) "item") ";")])]))]])))
 
 (defn account-block-me [user admin?]
   ;(println "user" user)
   (let [{:keys [id data]} user
-        details-complete? (seq (get data "phone"))
+        details-complete? (seq (get data "address"))
         shopping-items (:docs (<- :firestore/on-snapshot {:path-collection [:users id :shopping]
                                                           :order-by [[:timestamp :asc]]}))
         shopping-items (group-by #(get-in % [:data "receipt-transaction-id"]) shopping-items)]
@@ -326,15 +377,6 @@
      #_(when-let [name (:display-name (<- :get :user))]
          [:p {:style (s :pb3 :pt3)} (str "Welcome " name)])
      [:div
-      [:div [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80 ;:btw1 :b-ui0 {:border-top "1px solid grey"}
-                             )}
-             "Ashburton"]
-       "Some blurb about ashburton, not done yet. Some blurb about ashburton, not done yet.Some blurb about ashburton, not done yet.Some blurb about ashburton, not done yet.Some blurb about ashburton, not done yet.Some blurb about ashburton, not done yet.Some blurb about ashburton, not done yet.Some blurb about ashburton, not done yet."
-       [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80 ;:btw1 :b-ui0 {:border-top "1px solid grey"}
-                        )}
-        "Shops"]
-       "Each shop will have a section here. Each shop will have a section here. Each shop will have a section here. Each shop will have a section here."
-       ]
       [:div {:style (s :pl2 :tl :f3 :mb2 :mt2 :pt2 :pb2 :fwb :white :bg-brand0 :o80)
              :on-click #(! :assoc :selected-uid my-uid)}
        "My Account"]
@@ -351,6 +393,7 @@
       ]
      (doall (for [{:keys [id] :as user} users
                   :when (not= id my-uid)]
+              ^{:key id}
               [:div
                [:div {:style (s :pl2 :tl :f3 :mb2 :mt2 :pt2 :pb2 :fwb :white :bg-brand0 :o80)
                       :on-click #(! :assoc :selected-uid id)}
@@ -361,33 +404,60 @@
       [button {:on-click #(! :sign-out)} "logout"]]]))
 
 (defn main-panel []  
-  [:<>
-   [:div {:style (s :fg1)}]
-   [:div {:style (merge (s  :bg-ui1 :pb7 :fg1)
-                        {:max-width 700
-                         :min-height "100vh"
-                         :display "block"
-                         :margin "0 0"})}
-    [:div {:style (s :flex :fdr :tl :jcsb :bg-ui0)}
-     [:div 
-      [:p {:style (s :f4 :pl2 :pt2 :fwb :white)} "LocaList"]
-      [:p {:style (s :pl2 :pb2 :status1)}  
-       "Ashburton"]]
-     [:p {:style (s :f5 :pa2 :tr :ui1)} "Corona Community" [:br] "Response"]]
-    [:p {:style (s :f6  :tc :pt1 :pb2 :bg-brand0 :ui1)} "supporting volunteer home delivery groups and local communities"]
-    (if (<- :get :user)
-      [logged-in]
-      [login-create-account])
-    (when-let [popup (<- :get :popup)]
-      [:div {:style (s :tc :w100 :h100 :bg-ui1
-                       {:background-color "rgba(0, 0, 0, 0.7)"
-                        :position "fixed"
-                        :top 0
-                        :left 0})}
-       [:div {:style (s :ma3)}
-        [:a {:style (s :white)
-             :on-click #(! :assoc :popup nil)}
-         "close"]]
-       popup])]
-   
-   [:div {:style (s :fg1)}]])
+  (let [community (:data (<- :firestore/on-snapshot {:path-document [:communities "ashburton"]}))
+        shops (:docs (<- :firestore/on-snapshot {:path-collection [:communities "ashburton" :shops]
+                                                 ;:order-by [[:timestamp :asc]]
+                                                 }))]
+    [:<>
+     [:div {:style (s :fg1)}]
+     [:div {:style (merge (s  :bg-ui1 :pb7 :fg1)
+                          {:max-width 700
+                           :min-height "100vh"
+                           :display "block"
+                           :margin "0 0"})}
+      [:div {:style (s :flex :fdr :tl :jcsb :bg-ui0)}
+       [:div 
+        [:p {:style (s :f4 :pl2 :pt2 :fwb :white)} "LocaList"]
+        [:p {:style (s :pl2 :pb2 :status1)}  
+         (get community "name")]]
+       [:p {:style (s :f5 :pa2 :tr :ui1)} "Corona Community" [:br] "Response"]]
+      [:p {:style (s :f6  :tc :pt1 :pb2 :bg-brand0 :ui1)} "supporting volunteer home delivery groups and local communities"]
+      [:div [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80 ;:btw1 :b-ui0 {:border-top "1px solid grey"}
+                             )}
+             (get community "name")]
+       [:pre {:style (s :tl :pa3)}
+        (get community "info")]]
+      (when (seq shops)
+        [:<> 
+         [:div {:style (s :pl2 :tl :f3 :mb1 :mt2 :pt2 :pb2 :fwb :white :bg-brand0 :o80)}
+          "Shops"]
+         (doall (for [{:keys [id data]} shops]
+                  ^{:key id}
+                  [:div {:style (s :tc :mb4)}
+                   [:div {:style (s :tl :pb2 
+                                    {:max-width 500
+                                     :margin "auto"
+                                     :border-bottom "1px solid grey"})}
+                    [:div {:style (s :tc :f3 :pb2 :pt3 :fwb :ui0 :o80)}
+                     (get data "shop-name")]
+                    [:div {:style (s :pl1 :pr1 :f6 :brand0 :mb2)} "Opening times"]
+                    [:div  (get data "opening-times")]
+                    [:div {:style (s :pl1 :pr1 :f6 :brand0 :mb2 :mt3)}  "Info"]
+                    [:div  (get data "info")]
+                    ]]))])
+      (if (<- :get :user)
+        [logged-in]
+        [login-create-account])
+      (when-let [popup (<- :get :popup)]
+        [:div {:style (s :tc :w100 :h100 :bg-ui1
+                         {:background-color "rgba(0, 0, 0, 0.7)"
+                          :position "fixed"
+                          :top 0
+                          :left 0})}
+         [:div {:style (s :ma3)}
+          [:a {:style (s :white)
+               :on-click #(! :assoc :popup nil)}
+           "close"]]
+         popup])]
+     
+     [:div {:style (s :fg1)}]]))

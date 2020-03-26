@@ -31,6 +31,10 @@
   []
   (.serverTimestamp (.. firebase -firestore -FieldValue)))
 
+(defn increment-field [amount]
+  (.increment (.. firebase -firestore -FieldValue)
+              amount))
+
 (defn delete-field-value
   "Returns a field value to be used to delete a field.
   See https://firebase.google.com/docs/firestore/manage-data/delete-data#fields
@@ -263,6 +267,7 @@
 
 (defn write-batch-effect [{:keys [operations on-success on-failure]}]
   (let [batch-instance (.batch (.firestore firebase))]
+    (println operations)
     (run! (fn [[event-type {:keys [path data set-options]}]]
             (case event-type
               :firestore/delete (deleter batch-instance path)

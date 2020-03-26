@@ -66,6 +66,7 @@
 
 (defn init []
   (re-frame/dispatch-sync [:initialize-db])
+  (re-frame/dispatch [:init-captcha])
   (dev-setup)
   (routes)
   (firebase/init :firebase-app-info      firebase-app-info

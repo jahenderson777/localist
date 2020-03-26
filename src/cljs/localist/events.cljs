@@ -1,5 +1,6 @@
 (ns localist.events
   (:require
+   [clojure.string :as str]
    [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx]]
    [localist.re-frame-firebase.firestore :as firestore]
    [localist.db :as db]
@@ -86,19 +87,35 @@
                       :on-success [:assoc temp-item-kw nil :edit-item nil]
                       :on-failure #(prn "Error:" %)}})))
 
+
+
 (reg-event-fx
  :account-edit-save
  (fn [{:keys [db]} [_ uid]]
-   (let [{:keys [edit-account temp-name temp-address temp-phone temp-dropoff temp-postcode]} db]
-     {:firestore/set {:path [:users uid]
-                         :data (merge (when temp-name {"name" temp-name})
-                                      (when temp-address {"address" temp-address})
-                                      (when temp-phone {"phone" temp-phone})
-                                      (when temp-dropoff {"dropoff" temp-dropoff})
-                                      (when temp-postcode {"postcode" temp-postcode})
-                                      )
-                         :on-success [:assoc :edit-account nil]
-                         :on-failure #(prn "Error:" %)}})))
+   (let [{:keys [edit-account temp-name temp-address temp-phone temp-dropoff temp-postcode
+                 has-store? temp-shop-name temp-opening-times temp-info]} db
+
+         my-account-data (merge (when temp-name {"name" temp-name})
+                                (when temp-address {"address" temp-address})
+                                (when temp-phone {"phone" temp-phone})
+                                (when temp-dropoff {"dropoff" temp-dropoff})
+                                (when temp-postcode {"postcode" temp-postcode}))
+         my-account-update [:firestore/set {:path [:users uid]
+                                               :data my-account-data
+                                               :set-options {:merge true}}]
+
+         my-shop-data (doto (merge (when temp-shop-name {"shop-name" temp-shop-name})
+                                   (when temp-opening-times {"opening-times" temp-opening-times})
+                                   (when temp-info {"info" temp-info}))
+                        println)
+         my-shop-update [:firestore/set {:path [:communities "ashburton" :shops uid]
+                                            :data my-shop-data
+                                            :set-options {:merge true}}]]
+     {:firestore/write-batch
+      {:operations (remove nil? [(when my-account-data my-account-update)
+                                 (when (and has-store? my-shop-data) my-shop-update)])
+       :on-success #(re-frame/dispatch [:assoc :edit-account nil])
+       :on-failure #(prn "Error:" %)}})))
 
 (reg-event-fx
  :firestore-delete-item
@@ -108,6 +125,14 @@
                          ;:on-success [:assoc :temp-item nil :edit-item nil]
                          :on-failure #(prn "Error:" %)}
       :db (dissoc db :edit-item :temp-item)})))
+
+(reg-event-fx
+ :firestore-delete-shop
+ (fn [{:keys [db]} [_ uid]]
+   (let [{:keys [user temp-item edit-item]} db]
+     {:firestore/delete {:path [:communities "ashburton" :shops uid]                         
+                         ;:on-success [:assoc :temp-item nil :edit-item nil]
+                         :on-failure #(prn "Error:" %)}})))
 
 (reg-event-fx
  :firestore-get
@@ -121,7 +146,7 @@
 
 (reg-event-fx
  :firestore-mark-transaction
- (fn [{:keys [db]} [_ {:keys [checked-items selected-uid transaction-path]}]]
+ (fn [{:keys [db]} [_ {:keys [checked-items selected-uid transaction-path transaction-amount]}]]
    (let [;{:keys [checked-items selected-uid]} db
          ;temp-item-kw (keyword prefix (str "temp-item-new-" uid))
          ;temp-item (get db temp-item-kw)
@@ -129,17 +154,21 @@
      (println "transaction-path" (last transaction-path) transaction-path)
      {:firestore/write-batch
       {:operations
-       (for [item-id checked-items]
-         (do (println [:users selected-uid item-id])
-             [:firestore/update {:path [:users selected-uid :shopping item-id]
-                                 :data {:receipt-transaction-id (last transaction-path)}}]))
+       (conj
+        (for [item-id checked-items]
+          (do (println [:users selected-uid item-id])
+              [:firestore/update {:path [:users selected-uid :shopping item-id]
+                                  :data {:receipt-transaction-id (last transaction-path)}}]))
+        [:firestore/update {:path [:users selected-uid]
+                            :data {:balance (firestore/increment-field (* -1 transaction-amount))}}])
        :on-success #(re-frame/dispatch [:assoc :checked-items #{}])
-       :on-failure #(js/alert "Error setting receipt against items:" %)}})))
+       :on-failure #(js/alert "Error setting receipt against items:" %)}
+      :db (dissoc db :transaction-amount)})))
 
 (reg-event-fx
  :firestore-add-transaction
  (fn [{:keys [db]} [_ uid receipt-url]]
-   (let [{:keys [checked-items selected-uid]} db
+   (let [{:keys [checked-items selected-uid transaction-amount]} db
          ;temp-item-kw (keyword prefix (str "temp-item-new-" uid))
          ;temp-item (get db temp-item-kw)
          ]
@@ -152,8 +181,9 @@
                              }
                       :on-success #(re-frame/dispatch 
                                     [:firestore-mark-transaction {:checked-items checked-items
-                                                                 :selected-uid selected-uid
-                                                                 :transaction-path %}])
+                                                                  :selected-uid selected-uid
+                                                                  :transaction-amount transaction-amount
+                                                                  :transaction-path %}])
                       :on-failure #(prn "Error:" %)}
       ;:db (dissoc db :edit-item temp-item-kw :show-menu)
       })))
@@ -173,3 +203,25 @@
    (println "error")
    (cljs.pprint/pprint v)
    (js/alert v)))
+
+
+(re-frame/reg-event-fx
+ :init-captcha
+ (fn [_ _]
+   {:firebase/init-recaptcha {:on-solve [:assoc :captcha-msg "Welcome Human"]
+                              :container-id "Phone"}}))
+
+
+(re-frame/reg-event-fx
+ :phone-sign-in
+ (fn [_ [_ phone]]
+   (let [phone (str/replace-first phone #"^[0]+" "+44")]
+     {:firebase/phone-number-sign-in {:phone-number phone
+                                      :on-send [:assoc :sms-sent true]}})))
+
+
+(re-frame/reg-event-fx
+ :phone-confirm-code
+ (fn [_ [_ code]]
+   {:firebase/phone-number-confirm-code {:code code}}))
+

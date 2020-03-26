@@ -141,10 +141,11 @@
 
 
 (defn init-recaptcha [{:keys [on-solve container-id]}]
-  (let [recaptcha (.. firebase -auth -RecaptchaVerifier.
-                   container-id
-                   (clj->js {:size     "invisible"
-                             :callback #(re-frame/dispatch on-solve)}))]
+  (let [RecaptchaVerifier (.. firebase -auth -RecaptchaVerifier)
+        recaptcha (RecaptchaVerifier.
+                      container-id
+                      (clj->js {:size     "invisible"
+                                :callback #(re-frame/dispatch on-solve)}))]
     (swap! core/firebase-state assoc
            :recaptcha-verifier recaptcha)))
 
