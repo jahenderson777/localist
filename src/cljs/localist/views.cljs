@@ -50,7 +50,7 @@
      [:div
       [:p {:style (s :ma4)} "Don't have Facebook? Create an account with your email..."]
 
-      [login-input {:id "Name" :db-key :temp-name :type "text"}]
+      ;[login-input {:id "Name" :db-key :temp-name :type "text"}]
       [login-input {:id "Email" :db-key :temp-email :type "email"}]
       [login-input {:id "Password" :db-key :temp-password :type "password"}]
       [login-input {:id "Confirm Password" :db-key :temp-password-confirm :type "password"}]
@@ -103,7 +103,7 @@
               :on-click #(! :assoc :show-menu nil :edit-item nil)}
           "cancel"]])]]))
 
-(defn item-block [uid prefix item checked]
+(defn item-block [uid prefix item checked admin?]
   (let [data (:data item)
         temp-item (keyword prefix (str "temp-item-" uid))
         txt (get data "item")]
@@ -111,14 +111,15 @@
                          {:display "flex"
                           :min-height 20
                           :cursor "pointer"})}
-     [:div {:style (s :w2)
+     [:div {:style (s :fg1)
             :on-click #(! :assoc :edit-item item temp-item txt)}
       txt]
-     [:input {:style (s :w2 :h2 :bg-status2)
-              :checked (boolean checked)
-              :on-change (fn [e]
-                           (! :toggle-checked (:id item)))
-              :type "checkbox"}]]))
+     (when admin? 
+       [:input {:style (s :w2 :h2 :bg-status2)
+                :checked (boolean checked)
+                :on-change (fn [e]
+                             (! :toggle-checked (:id item)))
+                :type "checkbox"}])]))
 
 (defn my-account-field [data field-name editing? & [last?]]
   [:div {:style (s (when-not last? :mr2))}
@@ -145,22 +146,25 @@
                          :min-height 20
                          :min-width 20})}
        [:pre
-        (get data field-name)]])]])
+        (or (get data field-name)
+            (and (= field-name "balance") "0.00")
+            )]])]])
 
-(defn account-details [uid data & [other?]]
-  (let [editing? (= uid (<- :get :edit-account))
-        admin? (get data "admin")]
+(defn account-details [uid data & [admin?]]
+  (let [details-complete? (seq (get data "phone"))
+        editing? (or (= uid (<- :get :edit-account))
+                     (not details-complete?))
+        ;admin? (get data "admin")
+        ]
     [:div 
-     (if other?
-       [:div {:style (s :f3 :mb2 :mt4 :pt2 :pb2 :fwb :white :bg-brand0 :o80)}
-        (get data "name")]
-       [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80)}
-        "Account details"])
+     (when-not details-complete?
+       [:div {:style (s :status0 :fwb :f3 :pa3 :ma3)}
+        "please fill in your details"])
      [:div {:style (s (if editing? :tc :tl) 
                       (when-not editing? :flex) 
                       :jcsb)}
       [:div 
-       (when (or (not other?) editing?) [my-account-field data "name" editing?])
+       [my-account-field data "name" editing?]
        [my-account-field data "phone" editing?]
        (when (or (not editing?) admin?) [my-account-field data "balance" editing?])]
       [:div
@@ -176,17 +180,16 @@
        [:<> 
         [:div
          [:button {:style (s :bg-status0 :white :pa2 :mt3 :mb3 :fs0)
-                   :on-click #(! :account-edit-save)} "save"]]
-        [:div {:style (s :ma3)} 
-         [:a {:on-click #(! :assoc :edit-account false)}
-          "cancel"]]])]))
+                   :on-click #(! :account-edit-save uid)} "save"]]
+        (when details-complete?
+          [:div {:style (s :ma3)} 
+           [:a {:on-click #(! :assoc :edit-account false)}
+            "cancel"]])])]))
 
 
-(defn item-list [uid prefix text]
+(defn item-list [uid prefix text docs admin?]
   (let [me (<- :get :user :uid)
-        checked-items (<- :get :checked-items)
-        docs (:docs (<- :firestore/on-snapshot {:path-collection [:users uid prefix]
-                                                :order-by [[:timestamp :asc]]}))]
+        checked-items (<- :get :checked-items)]
    [:div
     [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80 ;:btw1 :b-ui0 {:border-top "1px solid grey"}
                      )}
@@ -201,7 +204,7 @@
                (if (= (:id item)
                       (:id (<- :get :edit-item)))
                  [add-form uid prefix true]
-                 [item-block uid prefix item (checked-items (:id item))])]))]
+                 [item-block uid prefix item (checked-items (:id item)) admin?])]))]
     [add-form uid prefix false]]))
 
 
@@ -212,23 +215,27 @@
     ;[:input {:type "text" :name "price" :value "0.01" :pattern "-?[0-9]*(\\.[0-9]+)?"}]
     [:select {:style (s :pa2)
               :id "price" :name "price"}
-     [:option {:value "0.01"} "0.01"]
-     [:option {:value "5.00"} "5.00"]
-     [:option {:value "10.00"} "10.00"]
-     [:option {:value "20.00"} "20.00"]
-     [:option {:value "40.00"} "40.00"]
-     [:option {:value "60.00"} "60.00"]]
+     [:option {:value "0.01"} "£0.01"]
+     [:option {:value "5.00"} "£5.00"]
+     [:option {:value "10.00"} "£10.00"]
+     [:option {:value "20.00"} "£20.00"]
+     [:option {:value "40.00"} "£40.00"]
+     [:option {:value "60.00"} "£60.00"]]
     [:button {:style (s :pa2 :ml2 :white)
               :form "paypal-form" :type "submit" :value "Add Credit"}
      "Add Credit"]]])
 
-(defn image-uploader []
+(defn image-uploader [uid]
   (let [ref (atom nil)
         upload-progress (<- :get :upload-progress)]
     [:div {:style (s :pa2)}
      (if upload-progress
        [:div (str "uploading " (int upload-progress) "%")]
        [:div
+        [:input {:style (s :w6)
+                 :type "number"
+                 :default-value 0
+                 :step 0.01}]
         [:input {:style (s :fg1 :f5 {:max-width 200})
                  :type "file" 
                  :ref (fn [el]
@@ -241,39 +248,115 @@
                                   (! :upload {:file f
                                               :on-complete (fn [url]
                                                              (println url)
-                                                             (! :assoc :upload-progress nil))
+                                                             (! :assoc :upload-progress nil)
+                                                             (! :firestore-add-transaction uid url))
                                               :on-progress #(! :assoc :upload-progress %)}))))}
          "upload"]])]))
 
+
+(defn transaction-list [uid items]
+  (let [transactions (:docs (<- :firestore/on-snapshot {:path-collection [:users uid :transactions]
+                                                        :order-by [[:timestamp :asc]]}))]
+    (when (seq transactions)
+      [:div
+       [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80 ;:btw1 :b-ui0 {:border-top "1px solid grey"}
+                        )}
+        "Receipts"]
+       [:div {:style (s :pb1 :tl)}
+        (doall (for [tr transactions]
+                 ^{:key (:id tr)}   
+                 [:div {:style (s :mt2 :mb1)}
+                  [:a {:style (s :pa2)
+                       :on-click #(! :assoc :popup
+                                     
+                                     [:img {:style {:height "100%"
+                                                    :width "100%"
+                                                    :object-fit "contain"}
+                                            :src (get (:data tr) "receipt-url")}])}
+                   (when-let [ts (get (:data tr) "timestamp")]
+                     (.toLocaleString (.toDate ts)))]
+                  (for [i (get items (:id tr))]
+                    ^{:key (:id i)}
+                    [:span {:style (s :pa2)}
+                     (get (:data i) "item")])]))]])))
+
+(defn account-block-me [user admin?]
+  ;(println "user" user)
+  (let [{:keys [id data]} user
+        details-complete? (seq (get data "phone"))
+        shopping-items (:docs (<- :firestore/on-snapshot {:path-collection [:users id :shopping]
+                                                          :order-by [[:timestamp :asc]]}))
+        shopping-items (group-by #(get-in % [:data "receipt-transaction-id"]) shopping-items)]
+    [:<>
+     [account-details id data admin?]
+     (when details-complete?
+       [:<> 
+        [add-credit id]
+        [item-list id :shopping "Shopping List" (get shopping-items nil) admin?]
+               ;[item-list id :surplus "Surplus"]
+        (when admin? [image-uploader id])
+        [transaction-list id shopping-items]])]))
+
+(defn account-block [user admin?]
+  (let [{:keys [id data]} user
+        shopping-items (:docs (<- :firestore/on-snapshot {:path-collection [:users id :shopping]
+                                                          :order-by [[:timestamp :asc]]}))
+        shopping-items (group-by #(get-in % [:data "receipt-transaction-id"]) shopping-items)]
+    [:<>
+     [account-details id data admin?]
+     [item-list id :shopping "Shopping List" (get shopping-items nil) admin?]
+               ;[item-list id :surplus "Surplus"]
+     [image-uploader id]
+     [transaction-list id shopping-items]]))
+
 (defn logged-in []
   (let [my-uid (<- :get :user :uid)
-        me (:data (<- :firestore/on-snapshot {:path-document [:users my-uid]}))
-        admin? (get me "admin")
+        selected-uid (or (<- :get :selected-uid) my-uid)
+        me (<- :firestore/on-snapshot {:path-document [:users my-uid]})
+        me-data (:data me)
+        admin? (get me-data "admin")
         users (if admin?
                 (:docs (<- :firestore/on-snapshot {:path-collection [:users]
                                                  ;:where [["shopper" :== "test"]]
                                                  ;:order-by [[:timestamp :asc]]
                                                    }))
                 [])]
-    ;(cljs.pprint/pprint users)
+    (cljs.pprint/pprint me-data )
     [:div
      #_(when-let [name (:display-name (<- :get :user))]
          [:p {:style (s :pb3 :pt3)} (str "Welcome " name)])
      [:div
-      
-      [account-details my-uid me]
-      [add-credit my-uid]
-      [item-list my-uid :shopping "Shopping List"]
+      [:div [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80 ;:btw1 :b-ui0 {:border-top "1px solid grey"}
+                             )}
+             "Ashburton"]
+       "Some blurb about ashburton, not done yet. Some blurb about ashburton, not done yet.Some blurb about ashburton, not done yet.Some blurb about ashburton, not done yet.Some blurb about ashburton, not done yet.Some blurb about ashburton, not done yet.Some blurb about ashburton, not done yet.Some blurb about ashburton, not done yet."
+       [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80 ;:btw1 :b-ui0 {:border-top "1px solid grey"}
+                        )}
+        "Shops"]
+       "Each shop will have a section here. Each shop will have a section here. Each shop will have a section here. Each shop will have a section here."
+       ]
+      [:div {:style (s :pl2 :tl :f3 :mb2 :mt2 :pt2 :pb2 :fwb :white :bg-brand0 :o80)
+             :on-click #(! :assoc :selected-uid my-uid)}
+       "My Account"]
+      (when (and (seq me)
+                 (= selected-uid my-uid))
+        [account-block-me me admin?])
+      #_(when (= selected-uid my-uid)
+          [:<>
+           [account-details my-uid me]
+           [add-credit my-uid]
+           [item-list my-uid :shopping "Shopping List"]
+           [transaction-list my-uid shopping-items]])
                ;[item-list id :surplus "Surplus"]
       ]
      (doall (for [{:keys [id] :as user} users
                   :when (not= id my-uid)]
               [:div
-               [account-details id (:data user) true]
-               [item-list id :shopping "Shopping List"]
-               ;[item-list id :surplus "Surplus"]
-               [image-uploader]
-               ]))
+               [:div {:style (s :pl2 :tl :f3 :mb2 :mt2 :pt2 :pb2 :fwb :white :bg-brand0 :o80)
+                      :on-click #(! :assoc :selected-uid id)}
+                (get (:data user) "name")]
+               (when (= selected-uid id)
+                 [account-block user admin?])]))
      [:div {:style (s :pa3 :mt5 {:display "block"})}
       [button {:on-click #(! :sign-out)} "logout"]]]))
 
@@ -291,8 +374,20 @@
       [:p {:style (s :pl2 :pb2 :status1)}  
        "Ashburton"]]
      [:p {:style (s :f5 :pa2 :tr :ui1)} "Corona Community" [:br] "Response"]]
-     [:p {:style (s :f6  :tc :pt1 :pb2 :bg-brand0 :ui1)} "supporting volunteer home delivery groups and local communities"]
+    [:p {:style (s :f6  :tc :pt1 :pb2 :bg-brand0 :ui1)} "supporting volunteer home delivery groups and local communities"]
     (if (<- :get :user)
       [logged-in]
-      [login-create-account])]
+      [login-create-account])
+    (when-let [popup (<- :get :popup)]
+      [:div {:style (s :tc :w100 :h100 :bg-ui1
+                       {:background-color "rgba(0, 0, 0, 0.7)"
+                        :position "fixed"
+                        :top 0
+                        :left 0})}
+       [:div {:style (s :ma3)}
+        [:a {:style (s :white)
+             :on-click #(! :assoc :popup nil)}
+         "close"]]
+       popup])]
+   
    [:div {:style (s :fg1)}]])

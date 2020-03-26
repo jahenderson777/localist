@@ -13,8 +13,8 @@
  (fn [db [_ & path]]
    (get-in db path)))
 
-(reg-sub
- :shopping
+#_(reg-sub
+ :shopping2
  :<- [:firestore/on-snapshot {:path-collection ["communities" "ashburton" "items"]}]
  (fn [query-result _]
    (let [docs (:docs query-result)
@@ -23,3 +23,10 @@
                    docs)]
      (into (sorted-map) (group-by (fn [doc] [(get doc "user")
                                              (get doc "type")]) docs)))))
+
+
+#_(reg-sub
+ :shopping-all
+ (fn [db _])
+ :<- [:firestore/on-snapshot {:path-collection [:users id :shopping]
+                              :order-by [[:timestamp :asc]]}])

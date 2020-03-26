@@ -88,9 +88,9 @@
 
 (reg-event-fx
  :account-edit-save
- (fn [{:keys [db]} _]
+ (fn [{:keys [db]} [_ uid]]
    (let [{:keys [edit-account temp-name temp-address temp-phone temp-dropoff temp-postcode]} db]
-     {:firestore/set {:path [:users edit-account]
+     {:firestore/set {:path [:users uid]
                          :data (merge (when temp-name {"name" temp-name})
                                       (when temp-address {"address" temp-address})
                                       (when temp-phone {"phone" temp-phone})
@@ -118,6 +118,45 @@
  :upload
  (fn [{:keys [db]} [_ opts]]
    {:firebase/upload opts}))
+
+(reg-event-fx
+ :firestore-mark-transaction
+ (fn [{:keys [db]} [_ {:keys [checked-items selected-uid transaction-path]}]]
+   (let [;{:keys [checked-items selected-uid]} db
+         ;temp-item-kw (keyword prefix (str "temp-item-new-" uid))
+         ;temp-item (get db temp-item-kw)
+         ]
+     (println "transaction-path" (last transaction-path) transaction-path)
+     {:firestore/write-batch
+      {:operations
+       (for [item-id checked-items]
+         (do (println [:users selected-uid item-id])
+             [:firestore/update {:path [:users selected-uid :shopping item-id]
+                                 :data {:receipt-transaction-id (last transaction-path)}}]))
+       :on-success #(re-frame/dispatch [:assoc :checked-items #{}])
+       :on-failure #(js/alert "Error setting receipt against items:" %)}})))
+
+(reg-event-fx
+ :firestore-add-transaction
+ (fn [{:keys [db]} [_ uid receipt-url]]
+   (let [{:keys [checked-items selected-uid]} db
+         ;temp-item-kw (keyword prefix (str "temp-item-new-" uid))
+         ;temp-item (get db temp-item-kw)
+         ]
+     {:firestore/add {:path [:users uid :transactions]
+                      :data {:timestamp (firestore/server-timestamp)
+                             :receipt-url receipt-url
+                             ;:user (firestore/clj->DocumentReference ["users" uid])
+                             ;:type prefix
+                             ;:item temp-item
+                             }
+                      :on-success #(re-frame/dispatch 
+                                    [:firestore-mark-transaction {:checked-items checked-items
+                                                                 :selected-uid selected-uid
+                                                                 :transaction-path %}])
+                      :on-failure #(prn "Error:" %)}
+      ;:db (dissoc db :edit-item temp-item-kw :show-menu)
+      })))
 
 #_(reg-event-fx
  :firestore-delete-item
