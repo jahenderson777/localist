@@ -26,7 +26,7 @@ a {
 }
 
 textarea,
-input[type="text"], input[type="email"], input[type="password"], button {
+input[type="text"], input[type="email"], input[type="phone"], input[type="number"], input[type="password"], button {
     -webkit-appearance: none;
     -webkit-border-radius: 0;
     border-radius: 0;
@@ -37,6 +37,7 @@ input[type="text"], input[type="email"], input[type="password"], button {
     -webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
     -moz-box-sizing: border-box;    /* Firefox, other Gecko */
     box-sizing: border-box;         /* Opera/IE 8+ */
+    caret-color: black;
 }
 
 .border-menu {

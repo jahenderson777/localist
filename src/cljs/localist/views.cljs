@@ -28,7 +28,7 @@
               :type type
               :id id
               :name id
-              :size (or size 23)              
+              :size (or size 22)              
               :default-value val
               :placeholder id
               :ref #(reset! ref %)
@@ -40,52 +40,57 @@
               :on-change #(! :assoc db-key (-> % .-target .-value))}]]))
 
 (defn login-create-account []
-  [:div {:style (s :tc :pt4 )}    
-   #_[button {:on-click #(firebase-auth/facebook-sign-in {})}
-      "Login with Facebook"]
-   #_[:hr]
-   (if (<- :get :sms-sent)
-     [:div
-      [:div "Please enter the code we just sent you..."]
-      [login-input {:id "SMS Code" :db-key :temp-sms-code :type "phone" :size 24
-                    :on-return #(! :phone-confirm-code (<- :get :temp-sms-code))}]
-      [button {:on-click #(! :phone-confirm-code (<- :get :temp-sms-code))}
-       "Confirm code"]
-      [:div {:style (s :pa3)}
-       [:a {:on-click #(! :assoc :temp-sms-code nil)}
-        "abort"]]]
-     [:div
-      [login-input {:id "Phone" :db-key :temp-phone :type "phone" :size 24
-                    :on-return #(! :phone-sign-in (<- :get :temp-phone))}]
-      [button {:id "phone-sign-in-button"
-               :on-click #(! :phone-sign-in (<- :get :temp-phone))}
-       "SMS me a login code"]
-      (when-let [msg (<- :get :phone-sign-in-msg)]
-        [:div msg])])
-   [:hr]
-   (if (<- :get :show-login-account)
-     [:div
-      [:p {:style (s :ma4)} "Login with an account you have already created..."]
-      [login-input {:id "Email" :db-key :temp-email :type "email" :size 24}]
-      [login-input {:id "Password" :db-key :temp-password :type "password" :size 24}]
-      [:div {:style (s :ma3)}
-       [button {:on-click #(! :sign-in-by-email)}
-        "Login"]
-       [:a {:style (s :ml3 {:padding 10 :font-size 14 :text-decoration "underline" :cursor "pointer"}) :on-click #(! :send-password-reset-email)} "forgot password?"]]
-      [:div {:style (s :mt3)}
-       [:a {:style {:text-decoration "underline" :cursor "pointer"} :on-click #(! :assoc :show-login-account false)} "Create an account with your email address"]]]
-     [:div
-      [:p {:style (s :ma4)} "Or create an account with your email..."]
+  [:<>
+   #_[:div {:style (s :pl2 :tl :f3 :mb1 :mt2 :pt2 :pb2 :fwb :white :bg-brand0 :o80)}
+    "Please login"]
+   [:div {:style (s :tc :pt4 )}    
+    #_[button {:on-click #(firebase-auth/facebook-sign-in {})}
+       "Login with Facebook"]
+    #_[:hr]
+    
+    (if (<- :get :sms-sent)
+      [:div
+       [:div "Please enter the code we just sent you..."]
+       [login-input {:id "SMS Code" :db-key :temp-sms-code :type "phone" 
+                     :on-return #(! :phone-confirm-code (<- :get :temp-sms-code))}]
+       [button {:on-click #(! :phone-confirm-code (<- :get :temp-sms-code))}
+        "Confirm code"]
+       [:div {:style (s :pa3)}
+        [:a {:on-click #(! :assoc :temp-sms-code nil :sms-sent nil)}
+         "abort"]]]
+      [:div
+       [:p {:style (s :mb3)} "Login with your mobile phone..."]
+       [login-input {:id "Phone" :db-key :temp-phone :type "phone" 
+                     :on-return #(! :phone-sign-in (<- :get :temp-phone))}]
+       [button {:id "phone-sign-in-button"
+                :on-click #(! :phone-sign-in (<- :get :temp-phone))}
+        "SMS me a login code"]
+       (when-let [msg (<- :get :phone-sign-in-msg)]
+         [:div msg])])
+    [:hr]
+    (if (<- :get :show-login-account)
+      [:div
+       [:p {:style (s :ma4)} "Login with an account you have already created..."]
+       [login-input {:id "Email" :db-key :temp-email :type "email" }]
+       [login-input {:id "Password" :db-key :temp-password :type "password" }]
+       [:div {:style (s :ma3)}
+        [button {:on-click #(! :sign-in-by-email)}
+         "Login"]
+        [:a {:style (s :ml3 {:padding 10 :font-size 14 :text-decoration "underline" :cursor "pointer"}) :on-click #(! :send-password-reset-email)} "forgot password?"]]
+       [:div {:style (s :mt3)}
+        [:a {:style {:text-decoration "underline" :cursor "pointer"} :on-click #(! :assoc :show-login-account false)} "Create an account with your email address"]]]
+      [:div
+       [:p {:style (s :ma4)} "Or create an account with your email address..."]
 
       ;[login-input {:id "Name" :db-key :temp-name :type "text"}]
-      [login-input {:id "Email" :db-key :temp-email :type "email"}]
-      [login-input {:id "Password" :db-key :temp-password :type "password"}]
-      [login-input {:id "Confirm Password" :db-key :temp-password-confirm :type "password"}]
-      [:div {:style (s :pt3)} 
-       [button {:on-click #(! :create-by-email)}
-        "Create account"]]
-      [:div {:style (s :mt3)}
-       [:a {:style {:text-decoration "underline" :cursor "pointer"} :on-click #(! :assoc :show-login-account true)} "Login with an existing account"]]])])
+       [login-input {:id "Email" :db-key :temp-email :type "email"}]
+       [login-input {:id "Password" :db-key :temp-password :type "password"}]
+       [login-input {:id "Confirm Password" :db-key :temp-password-confirm :type "password"}]
+       [:div {:style (s :pt3)} 
+        [button {:on-click #(! :create-by-email)}
+         "Create account"]]
+       [:div {:style (s :mt3)}
+        [:a {:style {:text-decoration "underline" :cursor "pointer"} :on-click #(! :assoc :show-login-account true)} "Login with an existing account"]]])]])
 
 (def input-ref (atom nil))
 
@@ -259,11 +264,33 @@
 
 (defn add-credit [uid]
   [:div {:style (s :mb3)}
-   [:a {:style (s :pa2 :white
-                  {:background-color "cornflowerblue"
-                   :text-decoration "none"})
-        :href "https://paypal.me/jahenderson777"}
-    "Add Credit"] 
+   "£ "
+   [:input {:style (s :w5 :f3)
+            :type "number"
+            :default-value 0
+            :step 1
+            :min 0
+            :value (or (<- :get :credit-amount)
+                       0)
+            :on-change #(! :assoc :credit-amount (-> % .-target .-value))}]
+   [:button {:style (s :pa2 :ml2 :white)
+             :on-click #(! :assoc :popup
+                           [:div {:style (s :tl :bg-ui1 :pa4 {:max-width 400
+                                                              :margin "auto"})}
+                            [:div {:style (s :mb3)}
+                             "So that we can avoid all transaction fees we use PayPal transfers to manage account balances."]
+                            [:div {:style (s :mb3)}
+                             "Please be sure to mark your transfer with your name and phone number."]
+                            [:div "We need to manually match your transfer to your account so it will take some time for your balance to update."]
+                            [:div {:style (s :ma4 :tc)}
+                             [:a {:style (s :pa2 :white
+                                            {:background-color "cornflowerblue"
+                                             :text-decoration "none"})
+
+                                  :href (str "https://paypal.me/jahenderson777/" (<- :get :credit-amount) "GBP")}
+                              "Continue to PayPal"]]])}
+    "Add Credit"]
+   
    #_[:form {:action "https://europe-west2-localist-e864f.cloudfunctions.net/pay" :method "POST" :id "paypal-form"}
       [:input {:type "hidden" :name "uid" :value uid}]
     ;[:input {:type "text" :name "price" :value "0.01" :pattern "-?[0-9]*(\\.[0-9]+)?"}]
@@ -304,7 +331,7 @@
                                 (when f
                                   (! :upload {:file f
                                               :on-complete (fn [url]
-                                                             (println url)
+                                                             ;(println url)
                                                              (! :assoc :upload-progress nil)
                                                              (! :firestore-add-transaction uid url))
                                               :on-progress #(! :assoc :upload-progress %)}))))}
@@ -373,7 +400,7 @@
 
 #_(:docs (<- :firestore/on-snapshot {:path-collection [:users id :shopping]
                                    :order-by [[:timestamp :asc]]}))
-(defn logged-in []
+(defn logged-in [community shops]
   (let [my-uid (<- :get :user :uid)
         selected-uid (or (<- :get :selected-uid) my-uid)
         me (<- :firestore/on-snapshot {:path-document [:users my-uid]})
@@ -393,10 +420,35 @@
         users (if admin?
                 (:docs (<- :firestore/on-snapshot {:path-collection [:users]}))
                 [])]
-    ;(cljs.pprint/pprint items-grouped)
+    ;(cljs.pprint/pprint me-data)
     [:div
      #_(when-let [name (:display-name (<- :get :user))]
          [:p {:style (s :pb3 :pt3)} (str "Welcome " name)])
+     [:<>
+      [:div [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80)}
+             (get community "name")]
+       [:pre {:style (s :tl :pa3)}
+        (get community "info")]
+       (when-not (pos? (get me-data "balance"))
+           [:div {:style (s :tl :pa3)}
+            "Add some credit to your account first."])]
+      (when (seq shops)
+        [:<>
+         [:div {:style (s :pl2 :tl :f3 :mb1 :mt2 :pt2 :pb2 :fwb :white :bg-brand0 :o80)}
+          "Shop info"]
+         (doall (for [{:keys [id data]} shops]
+                  ^{:key id}
+                  [:div {:style (s :tc :mb4)}
+                   [:div {:style (s :tl :pa2
+                                    {:max-width 500
+                                     :margin "auto"
+                                     :border-bottom "1px solid grey"})}
+                    [:div {:style (s :tc :f3 :pb2 :pt3 :fwb :ui0 :o80)}
+                     (get data "shop-name")]
+                    [:div {:style (s :f6 :brand0 :mb2)} "Opening times"]
+                    [:div  (get data "opening-times")]
+                    [:div {:style (s :f6 :brand0 :mb2 :mt3)}  "Info"]
+                    [:div  (get data "info")]]]))])]
      [:div
       [:div {:style (s :pl2 :tl :f3 :mb2 :mt2 :pt2 :pb2 :fwb :white :bg-brand0 :o80)
              :on-click #(! :assoc :selected-uid my-uid)}
@@ -418,7 +470,7 @@
                                 [:span {:style (s :f5)} 
                                  (get-in item [:data "item"])
                                  "; "]) 
-                      (get-in items-grouped [id nil]))]]
+                              (get-in items-grouped [id nil]))]]
                (when (= selected-uid id)
                  [account-block user admin? (get items-grouped id)])]))
      [:div {:style (s :pa3 :mt5 {:display "block"})}
@@ -443,31 +495,8 @@
          (get community "name")]]
        [:p {:style (s :f5 :pa2 :tr :ui1)} "Corona Community" [:br] "Response"]]
       [:p {:style (s :f6  :tc :pt1 :pb2 :bg-brand0 :ui1)} "supporting volunteer home delivery groups and local communities"]
-      [:div [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80 ;:btw1 :b-ui0 {:border-top "1px solid grey"}
-                             )}
-             (get community "name")]
-       [:pre {:style (s :tl :pa3)}
-        (get community "info")]]
-      (when (seq shops)
-        [:<> 
-         [:div {:style (s :pl2 :tl :f3 :mb1 :mt2 :pt2 :pb2 :fwb :white :bg-brand0 :o80)}
-          "Shops"]
-         (doall (for [{:keys [id data]} shops]
-                  ^{:key id}
-                  [:div {:style (s :tc :mb4)}
-                   [:div {:style (s :tl :pa2 
-                                    {:max-width 500
-                                     :margin "auto"
-                                     :border-bottom "1px solid grey"})}
-                    [:div {:style (s :tc :f3 :pb2 :pt3 :fwb :ui0 :o80)}
-                     (get data "shop-name")]
-                    [:div {:style (s :f6 :brand0 :mb2)} "Opening times"]
-                    [:div  (get data "opening-times")]
-                    [:div {:style (s :f6 :brand0 :mb2 :mt3)}  "Info"]
-                    [:div  (get data "info")]
-                    ]]))])
       (if (<- :get :user)
-        [logged-in]
+        [logged-in community shops]
         [login-create-account])
       (when-let [popup (<- :get :popup)]
         [:div {:style (s :tc :w100 :h100 :bg-ui1
