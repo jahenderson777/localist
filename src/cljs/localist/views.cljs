@@ -5,6 +5,7 @@
    [localist.style :refer [s]]
    [localist.re-frame-firebase.auth :as firebase-auth]
    [localist.re-frame-firebase.storage :as storage]
+   [localist.re-frame-firebase.firestore :as firestore]
    ))
 
 (defn <- [& v]
@@ -176,7 +177,7 @@
             (and (= field-name "balance") "0.00")
             )]])]])
 
-(defn account-details [uid data & [admin?]]
+(defn account-details [uid data admin?]
   (let [details-complete? (seq (get data "address"))
         shop-doc (:data (<- :firestore/on-snapshot {:path-document [:communities "ashburton" :shops uid]}))
         has-store? (<- :get :has-store?)
@@ -257,21 +258,26 @@
 
 
 (defn add-credit [uid]
-  [:div 
-   [:form {:action "https://europe-west2-localist-e864f.cloudfunctions.net/pay" :method "POST" :id "paypal-form"}
-    [:input {:type "hidden" :name "uid" :value uid}]
+  [:div {:style (s :mb3)}
+   [:a {:style (s :pa2 :white
+                  {:background-color "cornflowerblue"
+                   :text-decoration "none"})
+        :href "https://paypal.me/jahenderson777"}
+    "Add Credit"] 
+   #_[:form {:action "https://europe-west2-localist-e864f.cloudfunctions.net/pay" :method "POST" :id "paypal-form"}
+      [:input {:type "hidden" :name "uid" :value uid}]
     ;[:input {:type "text" :name "price" :value "0.01" :pattern "-?[0-9]*(\\.[0-9]+)?"}]
-    [:select {:style (s :pa2)
-              :id "price" :name "price"}
-     [:option {:value "0.01"} "£0.01"]
-     [:option {:value "5.00"} "£5.00"]
-     [:option {:value "10.00"} "£10.00"]
-     [:option {:value "20.00"} "£20.00"]
-     [:option {:value "40.00"} "£40.00"]
-     [:option {:value "60.00"} "£60.00"]]
-    [:button {:style (s :pa2 :ml2 :white)
-              :form "paypal-form" :type "submit" :value "Add Credit"}
-     "Add Credit"]]])
+      [:select {:style (s :pa2)
+                :id "price" :name "price"}
+       [:option {:value "0.01"} "£0.01"]
+       [:option {:value "5.00"} "£5.00"]
+       [:option {:value "10.00"} "£10.00"]
+       [:option {:value "20.00"} "£20.00"]
+       [:option {:value "40.00"} "£40.00"]
+       [:option {:value "60.00"} "£60.00"]]
+      [:button {:style (s :pa2 :ml2 :white)
+                :form "paypal-form" :type "submit" :value "Add Credit"}
+       "Add Credit"]]])
 
 (defn image-uploader [uid]
   (let [ref (atom nil)
@@ -308,16 +314,17 @@
 (defn transaction-list [uid items]
   (let [transactions (:docs (<- :firestore/on-snapshot {:path-collection [:users uid :transactions]
                                                         :order-by [[:timestamp :asc]]}))]
-    (when (seq transactions)
-      [:div
-       [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80 ;:btw1 :b-ui0 {:border-top "1px solid grey"}
-                        )}
-        "Receipts"]
+    
+    [:div
+     [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80 ;:btw1 :b-ui0 {:border-top "1px solid grey"}
+                      )}
+      "Receipts"]
+     (if (seq transactions) 
        [:div {:style (s :pb1 :tl)}
         (doall (for [tr transactions]
                  ^{:key (:id tr)}   
-                 [:div {:style (s :mt2 :mb1)}
-                  [:a {:style (s :pa2)
+                 [:div {:style (s :mt2 :mb1 :ml2 :lh2)}
+                  [:a {:style (s )
                        :on-click #(! :assoc :popup
                                      
                                      [:img {:style {:height "100%"
@@ -326,35 +333,37 @@
                                             :src (get (:data tr) "receipt-url")}])}
                    (when-let [ts (get (:data tr) "timestamp")]
                      (.toLocaleString (.toDate ts)))]
-                  [:span {:style (s :fwb :pa2)}
-                   (str "£" (get (:data tr) "transaction-amount"))]
+                  [:span {:style (s :fwb)}
+                   (str " £" (get (:data tr) "transaction-amount") " ")]
                   (for [i (get items (:id tr))]
                     ^{:key (:id i)}
-                    [:span {:style (s :pa2)}
-                     (str (get (:data i) "item") ";")])]))]])))
+                    [:span ;{:style (s :ma2)}
+                     (str (get (:data i) "item") "; ")])]))]
+       [:div {:style (s :tl :ui0 :pa2 :o80)}
+        "Receipts will appear here when we've done some shopping for you. We will deduct the value from your account balance and include photos of any receipts."])]))
 
-(defn account-block-me [user admin?]
+(defn account-block-me [user admin? shopping-items]
   ;(println "user" user)
   (let [{:keys [id data]} user
         details-complete? (seq (get data "address"))
-        shopping-items (:docs (<- :firestore/on-snapshot {:path-collection [:users id :shopping]
-                                                          :order-by [[:timestamp :asc]]}))
-        shopping-items (group-by #(get-in % [:data "receipt-transaction-id"]) shopping-items)]
+        ;shopping-items (group-by #(get-in % [:data "receipt-transaction-id"]) items)
+        ]
+    ;(cljs.pprint/pprint shopping-items)
     [:<>
      [account-details id data admin?]
      (when details-complete?
        [:<> 
-        [add-credit id]
+        [add-credit id data]
         [item-list id :shopping "Shopping List" (get shopping-items nil) admin?]
                ;[item-list id :surplus "Surplus"]
         (when admin? [image-uploader id])
         [transaction-list id shopping-items]])]))
 
-(defn account-block [user admin?]
+(defn account-block [user admin? shopping-items]
   (let [{:keys [id data]} user
-        shopping-items (:docs (<- :firestore/on-snapshot {:path-collection [:users id :shopping]
-                                                          :order-by [[:timestamp :asc]]}))
-        shopping-items (group-by #(get-in % [:data "receipt-transaction-id"]) shopping-items)]
+        ;shopping-items (group-by #(get-in % [:data "receipt-transaction-id"]) items)
+        ]
+    ;(cljs.pprint/pprint items)
     [:<>
      [account-details id data admin?]
      [item-list id :shopping "Shopping List" (get shopping-items nil) admin?]
@@ -362,19 +371,29 @@
      [image-uploader id]
      [transaction-list id shopping-items]]))
 
+#_(:docs (<- :firestore/on-snapshot {:path-collection [:users id :shopping]
+                                   :order-by [[:timestamp :asc]]}))
 (defn logged-in []
   (let [my-uid (<- :get :user :uid)
         selected-uid (or (<- :get :selected-uid) my-uid)
         me (<- :firestore/on-snapshot {:path-document [:users my-uid]})
         me-data (:data me)
         admin? (get me-data "admin")
+        items (:docs (<- :firestore/on-snapshot 
+                         (merge {:path-collection [:communities "ashburton" :items]}
+                                (if admin? 
+                                  {:order-by [[:timestamp :asc]]}
+                                  {:where [["user" :== my-uid]]
+                                   :order-by [[:timestamp :asc]]}))))
+        items-grouped (->> items
+                           (group-by #(get-in % [:data "user"]))
+                           (map (fn [[k v]]
+                                  [k (group-by #(get-in % [:data "receipt-transaction-id"]) v)]))
+                           (into {}))
         users (if admin?
-                (:docs (<- :firestore/on-snapshot {:path-collection [:users]
-                                                 ;:where [["shopper" :== "test"]]
-                                                 ;:order-by [[:timestamp :asc]]
-                                                   }))
+                (:docs (<- :firestore/on-snapshot {:path-collection [:users]}))
                 [])]
-    (cljs.pprint/pprint me-data )
+    ;(cljs.pprint/pprint items-grouped)
     [:div
      #_(when-let [name (:display-name (<- :get :user))]
          [:p {:style (s :pb3 :pt3)} (str "Welcome " name)])
@@ -384,24 +403,24 @@
        "My Account"]
       (when (and (seq me)
                  (= selected-uid my-uid))
-        [account-block-me me admin?])
-      #_(when (= selected-uid my-uid)
-          [:<>
-           [account-details my-uid me]
-           [add-credit my-uid]
-           [item-list my-uid :shopping "Shopping List"]
-           [transaction-list my-uid shopping-items]])
-               ;[item-list id :surplus "Surplus"]
-      ]
+        [account-block-me me admin? (get items-grouped my-uid)])]
      (doall (for [{:keys [id] :as user} users
                   :when (not= id my-uid)]
               ^{:key id}
               [:div
-               [:div {:style (s :pl2 :tl :f3 :mb2 :mt2 :pt2 :pb2 :fwb :white :bg-brand0 :o80)
+               [:div {:style (s :pl2 :tl :mb2 :mt2 :pt2 :pb2 :white :bg-brand0 :o80 :flex :jcsb)
                       :on-click #(! :assoc :selected-uid id)}
-                (get (:data user) "name")]
+                [:span {:style (s :fwb :f3)} (get (:data user) "name")]
+                [:div {:style (s :tr
+                                 {:display "inline-block"})}
+                 (map-indexed (fn [idx item]
+                                ^{:key idx}
+                                [:span {:style (s :f5)} 
+                                 (get-in item [:data "item"])
+                                 "; "]) 
+                      (get-in items-grouped [id nil]))]]
                (when (= selected-uid id)
-                 [account-block user admin?])]))
+                 [account-block user admin? (get items-grouped id)])]))
      [:div {:style (s :pa3 :mt5 {:display "block"})}
       [button {:on-click #(! :sign-out)} "logout"]]]))
 

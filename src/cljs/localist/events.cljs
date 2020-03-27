@@ -66,9 +66,9 @@
          temp-item-kw (keyword prefix (str "temp-item-new-" uid))
          temp-item (get db temp-item-kw)]
      (println [:users uid prefix])
-     {:firestore/add {:path [:users uid prefix]
+     {:firestore/add {:path [:communities "ashburton" :items]
                       :data {:timestamp (firestore/server-timestamp)
-                             ;:user (firestore/clj->DocumentReference ["users" uid])
+                             :user uid ;(firestore/clj->DocumentReference ["users" uid])
                              ;:type prefix
                              :item temp-item}
                       :on-success [:assoc temp-item-kw nil]
@@ -81,7 +81,7 @@
    (let [{:keys [user edit-item]} db
          temp-item-kw (keyword prefix (str "temp-item-" uid))
          temp-item (get db temp-item-kw)]
-     {:firestore/update {:path [:users uid prefix (:id edit-item)]
+     {:firestore/update {:path [:communities "ashburton" :items (:id edit-item)]
                       :data (assoc (:data edit-item)
                                    :item temp-item) 
                       :on-success [:assoc temp-item-kw nil :edit-item nil]
@@ -121,7 +121,7 @@
  :firestore-delete-item
  (fn [{:keys [db]} [_ uid prefix]]
    (let [{:keys [user temp-item edit-item]} db]
-     {:firestore/delete {:path [:users uid prefix (:id edit-item)]
+     {:firestore/delete {:path [:communities "ashburton" :items (:id edit-item)]
                          ;:on-success [:assoc :temp-item nil :edit-item nil]
                          :on-failure #(prn "Error:" %)}
       :db (dissoc db :edit-item :temp-item)})))
@@ -157,7 +157,7 @@
        (conj
         (for [item-id checked-items]
           (do (println [:users selected-uid item-id])
-              [:firestore/update {:path [:users selected-uid :shopping item-id]
+              [:firestore/update {:path [:communities "ashburton" :items item-id]
                                   :data {:receipt-transaction-id (last transaction-path)}}]))
         [:firestore/update {:path [:users selected-uid]
                             :data {:balance (firestore/increment-field (* -1 transaction-amount))}}])

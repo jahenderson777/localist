@@ -1,7 +1,7 @@
 (ns localist.subs
   (:require
    [localist.re-frame-firebase.firestore :as firestore]
-   [re-frame.core :as re-frame :refer [reg-sub]]))
+   [re-frame.core :as re-frame :refer [reg-sub subscribe]]))
 
 (reg-sub
  :name
@@ -30,3 +30,4 @@
  (fn [db _])
  :<- [:firestore/on-snapshot {:path-collection [:users id :shopping]
                               :order-by [[:timestamp :asc]]}])
+
