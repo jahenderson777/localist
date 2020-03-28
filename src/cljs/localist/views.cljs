@@ -184,7 +184,7 @@
 
 (defn account-details [uid data admin?]
   (let [details-complete? (seq (get data "address"))
-        my-community (<- :get :my-community)
+        my-community (get data "my-community")
         shop-doc (:data (<- :firestore/on-snapshot {:path-document [:communities my-community :shops uid]}))
         has-store? (<- :get :has-store?)
         editing? (or (= uid (<- :get :edit-account))
@@ -401,16 +401,18 @@
 
 #_(:docs (<- :firestore/on-snapshot {:path-collection [:users id :shopping]
                                    :order-by [[:timestamp :asc]]}))
-(defn logged-in [community shops]
+(defn logged-in []
   (let [my-uid (<- :get :user :uid)
         selected-uid (or (<- :get :selected-uid) my-uid)
         me (<- :firestore/on-snapshot {:path-document [:users my-uid]})
         me-data (:data me)
         admin? (get me-data "admin")
-        my-community (<- :get :my-community)
-        items (:docs (<- :firestore/on-snapshot 
+        my-community (get me-data "my-community")
+        community (:data (<- :firestore/on-snapshot {:path-document [:communities my-community]}))
+        shops (:docs (<- :firestore/on-snapshot {:path-collection [:communities my-community :shops]}))
+        items (:docs (<- :firestore/on-snapshot
                          (merge {:path-collection [:communities my-community :items]}
-                                (if admin? 
+                                (if admin?
                                   {:order-by [[:timestamp :asc]]}
                                   {:where [["user" :== my-uid]]
                                    :order-by [[:timestamp :asc]]}))))
@@ -422,18 +424,15 @@
         users (if admin?
                 (:docs (<- :firestore/on-snapshot {:path-collection [:users]}))
                 [])]
-    ;(cljs.pprint/pprint me-data)
     [:div
-     #_(when-let [name (:display-name (<- :get :user))]
-         [:p {:style (s :pb3 :pt3)} (str "Welcome " name)])
      [:<>
       [:div [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80)}
              (get community "name")]
        [:pre {:style (s :tl :pa3)}
         (get community "info")]
        (when-not (pos? (get me-data "balance"))
-           [:div {:style (s :tl :pa3)}
-            "Add some credit to your account first."])]
+         [:div {:style (s :tl :pa3)}
+          "Add some credit to your account first."])]
       (when (seq shops)
         [:<>
          [:div {:style (s :pl2 :tl :f3 :mb1 :mt2 :pt2 :pb2 :fwb :white :bg-brand0 :o80)}
@@ -475,19 +474,37 @@
                               (get-in items-grouped [id nil]))]]
                (when (= selected-uid id)
                  [account-block user admin? (get items-grouped id)])]))
+     [:hr]
      [:div {:style (s :pa3 :mt5 {:display "block"})}
-      [button {:on-click #(! :sign-out)} "logout"]]]))
+      
+      [button {:on-click #(! :sign-out)} "logout"]
+      [:div {:style (s :ma4)}
+       [:a {:on-click #(! :firestore-set-community nil)}
+        "leave community"]]]]))
+
+
+(defn select-community []
+  (let [communities (:docs (<- :firestore/on-snapshot {:path-collection [:communities]}))]
+    ;(cljs.pprint/pprint communities)
+    [:div [:div {:style (s :f3 :pa3)}
+           "Please select a community"
+           (doall (for [community communities
+                        :let [{:keys [id data]} community]]
+                    ^{:key id}
+                    [:div {:style (s :ma3)}
+                     [:a {:on-click #(! :firestore-set-community id)}
+                      (get data "name")]]))]
+     [:div
+      {:style (s :tc {:margin "auto"
+                      :max-width 500})}
+      "To create a new community please email Jonathan on jahenderson777@gmail.com or phone 07912097088"]]))
 
 (defn main-panel []  
-  (let [;my-uid (<- :get :user :uid)
-        ;me (<- :firestore/on-snapshot {:path-document [:users my-uid]})
-        ;me-data (:data me)
-        ;my-community (get me-data "my-community")
-        my-community (<- :get :my-community)
-        community (:data (<- :firestore/on-snapshot {:path-document [:communities my-community]}))
-        shops (:docs (<- :firestore/on-snapshot {:path-collection [:communities my-community :shops]
-                                                 ;:order-by [[:timestamp :asc]]
-                                                 }))]
+  (let [my-uid (<- :get :user :uid)
+        me (when my-uid (<- :firestore/on-snapshot {:path-document [:users my-uid]}))
+        me-data (when me (:data me))
+        my-community (when me-data (get me-data "my-community"))        
+        _ (println "my community=" my-community)]
     [:<>
      [:div {:style (s :fg1)}]
      [:div {:style (merge (s  :bg-ui1 :pb7 :fg1)
@@ -499,11 +516,13 @@
        [:div 
         [:p {:style (s :f4 :pl2 :pt2 :fwb :white)} "LocaList"]
         [:p {:style (s :pl2 :pb2 :status1)}  
-         (get community "name")]]
+         my-community]]
        [:p {:style (s :f5 :pa2 :tr :ui1)} "Corona Community" [:br] "Response"]]
       [:p {:style (s :f6  :tc :pt1 :pb2 :bg-brand0 :ui1)} "supporting volunteer home delivery groups and local communities"]
       (if (<- :get :user)
-        [logged-in community shops]
+        (if my-community
+          [logged-in]
+          [select-community])
         [login-create-account])
       (when-let [popup (<- :get :popup)]
         [:div {:style (s :tc :w100 :h100 :bg-ui1

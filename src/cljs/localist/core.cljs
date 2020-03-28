@@ -2,7 +2,7 @@
   (:require-macros [secretary.core :refer [defroute]])
   (:require
    [reagent.core :as reagent]
-   [re-frame.core :as re-frame :refer [dispatch]]
+   [re-frame.core :as re-frame :refer [dispatch dispatch-sync]]
    [secretary.core :as secretary]
    [goog.events :as events]
    [localist.events]
@@ -41,16 +41,16 @@
   []
   ;(set! (.-hash js/location) "/")      ;; on app startup set location to "/"
   (secretary/set-config! :prefix "#")  ;; and don't forget about "#" prefix
-  (defroute "/" [] (dispatch [:assoc :active-page :home]))
-  (defroute "/login" [] (dispatch [:assoc :active-page :login]))
-  (defroute "/register" [] (dispatch [:assoc :active-page :register]))
-  (defroute "/settings" [] (dispatch [:assoc :active-page :settings]))
-  (defroute "/editor" [] (dispatch [:assoc :active-page :editor]))
-  (defroute "/editor/:slug" [slug] (dispatch [:assoc :active-page :editor :slug slug]))
-  (defroute "/logout" [] (dispatch [:sign-out]))
-  (defroute "/article/:slug" [slug] (dispatch [:assoc :active-page :article :slug slug]))
-  (defroute "/:profile/favorites" [profile] (dispatch [:assoc :active-page :favorited :favorited (subs profile 1)]))
-  (defroute "/:profile" [profile] (dispatch [:assoc :active-page :profile :profile profile]))
+  ;(defroute "/" [] (dispatch [:assoc :active-page :home]))
+  ;(defroute "/login" [] (dispatch [:assoc :active-page :login]))
+  ;(defroute "/register" [] (dispatch [:assoc :active-page :register]))
+  ;(defroute "/settings" [] (dispatch [:assoc :active-page :settings]))
+  ;(defroute "/editor" [] (dispatch [:assoc :active-page :editor]))
+  ;(defroute "/editor/:slug" [slug] (dispatch [:assoc :active-page :editor :slug slug]))
+  ;(defroute "/logout" [] (dispatch [:sign-out]))
+  ;(defroute "/article/:slug" [slug] (dispatch [:assoc :active-page :article :slug slug]))
+  ;(defroute "/:profile/favorites" [profile] (dispatch [:assoc :active-page :favorited :favorited (subs profile 1)]))
+  ;(defroute "/:community" [community] (dispatch-sync [:assoc :my-community community]))
   (hook-browser-navigation!))
 
 

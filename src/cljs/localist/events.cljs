@@ -30,10 +30,16 @@
      {:firebase/send-password-reset-email {:email temp-email
                                            :on-complete #(js/alert "Password reset email sent")}})))
 
-(reg-event-db
+(reg-event-fx
  :set-user
- (fn [db [_ user]]
-   (assoc db :user user)))
+ (fn [{:keys [db]} [_ user]]
+   (let [uid (:uid user)]
+     {:db (assoc db :user user)
+      :firestore/on-snapshot {:path-document [:users uid]
+                              :on-next (fn [doc]
+                                         (re-frame/dispatch :assoc
+                                                            :user-data (:data doc)
+                                                            :my-community (get (:data doc) "my-community")))}})))
 
 (reg-event-db
  :toggle-checked
@@ -116,6 +122,15 @@
                                  (when (and has-store? my-shop-data) my-shop-update)])
        :on-success #(re-frame/dispatch [:assoc :edit-account nil])
        :on-failure #(prn "Error:" %)}})))
+
+(reg-event-fx
+ :firestore-set-community
+ (fn [{:keys [db]} [_ community-id]]
+   (let [{:keys [user]} db
+         my-id (get user :uid)]
+     {:firestore/set {:path [:users my-id]
+                      :data {"my-community" community-id}
+                      :set-options {:merge true}}})))
 
 (reg-event-fx
  :firestore-delete-item

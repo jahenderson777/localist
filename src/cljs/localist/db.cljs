@@ -2,4 +2,5 @@
 
 (def default-db
   {:checked-items #{}
-   :my-community "ashburton"})
+   ;:my-community "ashburton"
+   })
