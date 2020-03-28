@@ -28,8 +28,8 @@
               :type type
               :id id
               :name id
-              :size (or size 22)              
-              :default-value val
+              :size (or size 22)
+              :value val
               :placeholder id
               :ref #(reset! ref %)
               :on-key-press (fn [e]
@@ -37,7 +37,7 @@
                                 (.blur @ref)
                                 (when on-return
                                   (on-return))))
-              :on-change #(! :assoc db-key (-> % .-target .-value))}]]))
+              :on-change #(re-frame/dispatch-sync [:assoc db-key (-> % .-target .-value)])}]]))
 
 (defn login-create-account []
   [:<>
@@ -121,7 +121,7 @@
                                (when (= 13 (.-charCode e))
                                  (.blur @input-ref)
                                  (! submit-event uid prefix)))
-               :on-change #(! :assoc temp-item (-> % .-target .-value))}]
+               :on-change #(re-frame/dispatch-sync [:assoc temp-item (-> % .-target .-value)])}]
       [:div
        [:button {:style (s :bg-status0 :white :pa2 :mt2 :mr2 :mb2 :fs0)
                  :on-click #(! submit-event uid prefix)} submit-text]]]
@@ -150,7 +150,7 @@
        [:input {:style (s :w2 :h2 :bg-status2)
                 :checked (boolean checked)
                 :on-change (fn [e]
-                             (! :toggle-checked (:id item)))
+                             (re-frame/dispatch-sync [:toggle-checked (:id item)]))
                 :type "checkbox"}])]))
 
 (defn my-account-field [data field-name editing? & [last?]]
@@ -172,7 +172,7 @@
                     :rows 3
                     :value (or (<- :get kw) 
                                (get data field-name))                
-                    :on-change #(! :assoc kw (-> % .-target .-value))}])
+                    :on-change #(re-frame/dispatch-sync [:assoc kw (-> % .-target .-value)])}])
       [:div {:style (s  :mb2 :pa1 :f5
                         {:display "inline-block"
                          :min-height 20
@@ -184,7 +184,8 @@
 
 (defn account-details [uid data admin?]
   (let [details-complete? (seq (get data "address"))
-        shop-doc (:data (<- :firestore/on-snapshot {:path-document [:communities "ashburton" :shops uid]}))
+        my-community (<- :get :my-community)
+        shop-doc (:data (<- :firestore/on-snapshot {:path-document [:communities my-community :shops uid]}))
         has-store? (<- :get :has-store?)
         editing? (or (= uid (<- :get :edit-account))
                      (not details-complete?))
@@ -221,7 +222,7 @@
                   :name "has-store"
                   :id "has-store"
                   :on-change (fn [e]
-                               (! :assoc :has-store? (not has-store?)))
+                               (re-frame/dispatch-sync [:assoc :has-store? (not has-store?)]))
                   :type "checkbox"}]])]
      (when (and has-store? editing?)
        [:div
@@ -272,7 +273,7 @@
             :min 0
             :value (or (<- :get :credit-amount)
                        0)
-            :on-change #(! :assoc :credit-amount (-> % .-target .-value))}]
+            :on-change #(re-frame/dispatch-sync [:assoc :credit-amount (-> % .-target .-value)])}]
    [:button {:style (s :pa2 :ml2 :white)
              :on-click #(! :assoc :popup
                            [:div {:style (s :tl :bg-ui1 :pa4 {:max-width 400
@@ -319,7 +320,7 @@
                  :step 0.01
                  :value (or (<- :get :transaction-amount)
                             "0.00")
-                 :on-change #(! :assoc :transaction-amount (-> % .-target .-value))}]
+                 :on-change #(re-frame/dispatch-sync [:assoc :transaction-amount (-> % .-target .-value)])}]
         [:input {:style (s :fg1 :f5 {:max-width 200})
                  :type "file" 
                  :ref (fn [el]
@@ -406,8 +407,9 @@
         me (<- :firestore/on-snapshot {:path-document [:users my-uid]})
         me-data (:data me)
         admin? (get me-data "admin")
+        my-community (<- :get :my-community)
         items (:docs (<- :firestore/on-snapshot 
-                         (merge {:path-collection [:communities "ashburton" :items]}
+                         (merge {:path-collection [:communities my-community :items]}
                                 (if admin? 
                                   {:order-by [[:timestamp :asc]]}
                                   {:where [["user" :== my-uid]]
@@ -477,8 +479,13 @@
       [button {:on-click #(! :sign-out)} "logout"]]]))
 
 (defn main-panel []  
-  (let [community (:data (<- :firestore/on-snapshot {:path-document [:communities "ashburton"]}))
-        shops (:docs (<- :firestore/on-snapshot {:path-collection [:communities "ashburton" :shops]
+  (let [;my-uid (<- :get :user :uid)
+        ;me (<- :firestore/on-snapshot {:path-document [:users my-uid]})
+        ;me-data (:data me)
+        ;my-community (get me-data "my-community")
+        my-community (<- :get :my-community)
+        community (:data (<- :firestore/on-snapshot {:path-document [:communities my-community]}))
+        shops (:docs (<- :firestore/on-snapshot {:path-collection [:communities my-community :shops]
                                                  ;:order-by [[:timestamp :asc]]
                                                  }))]
     [:<>

@@ -62,11 +62,11 @@
 (reg-event-fx
  :firestore-add-item
  (fn [{:keys [db]} [_ uid prefix]]
-   (let [{:keys [user]} db
+   (let [{:keys [user my-community]} db
          temp-item-kw (keyword prefix (str "temp-item-new-" uid))
          temp-item (get db temp-item-kw)]
      (println [:users uid prefix])
-     {:firestore/add {:path [:communities "ashburton" :items]
+     {:firestore/add {:path [:communities my-community :items]
                       :data {:timestamp (firestore/server-timestamp)
                              :user uid ;(firestore/clj->DocumentReference ["users" uid])
                              ;:type prefix
@@ -78,10 +78,10 @@
 (reg-event-fx
  :firestore-update-item
  (fn [{:keys [db]} [_ uid prefix]]
-   (let [{:keys [user edit-item]} db
+   (let [{:keys [user edit-item my-community]} db
          temp-item-kw (keyword prefix (str "temp-item-" uid))
          temp-item (get db temp-item-kw)]
-     {:firestore/update {:path [:communities "ashburton" :items (:id edit-item)]
+     {:firestore/update {:path [:communities my-community :items (:id edit-item)]
                       :data (assoc (:data edit-item)
                                    :item temp-item) 
                       :on-success [:assoc temp-item-kw nil :edit-item nil]
@@ -93,7 +93,7 @@
  :account-edit-save
  (fn [{:keys [db]} [_ uid]]
    (let [{:keys [edit-account temp-name temp-address temp-phone temp-dropoff temp-postcode
-                 has-store? temp-shop-name temp-opening-times temp-info]} db
+                 has-store? temp-shop-name temp-opening-times temp-info my-community]} db
 
          my-account-data (merge (when temp-name {"name" temp-name})
                                 (when temp-address {"address" temp-address})
@@ -108,7 +108,7 @@
                                    (when temp-opening-times {"opening-times" temp-opening-times})
                                    (when temp-info {"info" temp-info}))
                         println)
-         my-shop-update [:firestore/set {:path [:communities "ashburton" :shops uid]
+         my-shop-update [:firestore/set {:path [:communities my-community :shops uid]
                                             :data my-shop-data
                                             :set-options {:merge true}}]]
      {:firestore/write-batch
@@ -120,8 +120,8 @@
 (reg-event-fx
  :firestore-delete-item
  (fn [{:keys [db]} [_ uid prefix]]
-   (let [{:keys [user temp-item edit-item]} db]
-     {:firestore/delete {:path [:communities "ashburton" :items (:id edit-item)]
+   (let [{:keys [user temp-item edit-item my-community]} db]
+     {:firestore/delete {:path [:communities my-community :items (:id edit-item)]
                          ;:on-success [:assoc :temp-item nil :edit-item nil]
                          :on-failure #(prn "Error:" %)}
       :db (dissoc db :edit-item :temp-item)})))
@@ -129,8 +129,8 @@
 (reg-event-fx
  :firestore-delete-shop
  (fn [{:keys [db]} [_ uid]]
-   (let [{:keys [user temp-item edit-item]} db]
-     {:firestore/delete {:path [:communities "ashburton" :shops uid]                         
+   (let [{:keys [user temp-item edit-item my-community]} db]
+     {:firestore/delete {:path [:communities my-community :shops uid]                         
                          ;:on-success [:assoc :temp-item nil :edit-item nil]
                          :on-failure #(prn "Error:" %)}})))
 
@@ -150,14 +150,14 @@
    (let [;{:keys [checked-items selected-uid]} db
          ;temp-item-kw (keyword prefix (str "temp-item-new-" uid))
          ;temp-item (get db temp-item-kw)
-         ]
+         {:keys [my-community]} db]
      (println "transaction-path" (last transaction-path) transaction-path)
      {:firestore/write-batch
       {:operations
        (conj
         (for [item-id checked-items]
           (do (println [:users selected-uid item-id])
-              [:firestore/update {:path [:communities "ashburton" :items item-id]
+              [:firestore/update {:path [:communities my-community :items item-id]
                                   :data {:receipt-transaction-id (last transaction-path)}}]))
         [:firestore/update {:path [:users selected-uid]
                             :data {:balance (firestore/increment-field (* -1 transaction-amount))}}])
@@ -188,6 +188,14 @@
                       :on-failure #(prn "Error:" %)}
       ;:db (dissoc db :edit-item temp-item-kw :show-menu)
       })))
+
+#_(reg-event-fx
+ :firestore-listen-me
+ (fn [{:keys [db]} [_]]
+   (let [{:keys [user]} db
+         {:keys [uid]} user]
+     {:firestore/on-snapshot {:path-document [:users uid]
+                              :on-next 1}})))
 
 #_(reg-event-fx
  :firestore-delete-item
