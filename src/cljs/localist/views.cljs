@@ -184,14 +184,14 @@
 
 (defn account-details [uid data admin?]
   (let [details-complete? (seq (get data "address"))
-        my-community (get data "my-community")
+        my-community (get data "community")
         shop-doc (:data (<- :firestore/on-snapshot {:path-document [:communities my-community :shops uid]}))
         has-store? (<- :get :has-store?)
         editing? (or (= uid (<- :get :edit-account))
                      (not details-complete?))
         ;admin? (get data "admin")
         ]
-    [:div 
+    [:div
      (when-not details-complete?
        [:div {:style (s :status0 :fwb :f3 :pa3 :ma3)}
         "please fill in your details"])
@@ -210,6 +210,9 @@
        (when-not editing?
          [:div {:style (s :tc)}
           [:a {:on-click (fn [] (! :assoc :edit-account uid
+                                   :temp-name nil :temp-phone nil :temp-postcode nil 
+                                   :temp-dropoff nil :temp-balance nil
+                                   :temp-shop-name nil :temp-opening-times nil :temp-info nil
                                    :has-store? (boolean shop-doc)))}
            "edit"]])]
       (when editing?
@@ -406,9 +409,13 @@
         selected-uid (or (<- :get :selected-uid) my-uid)
         me (<- :firestore/on-snapshot {:path-document [:users my-uid]})
         me-data (:data me)
-        admin? (get me-data "admin")
-        my-community (get me-data "my-community")
+        
+        my-community (get me-data "community")
         community (:data (<- :firestore/on-snapshot {:path-document [:communities my-community]}))
+        volunteers (into #{} (get community "volunteers"))
+        volunteer? (volunteers my-uid)
+        admin? (or volunteer? (= my-uid (get community "admin")))
+        ;_ (println "volunteers " (get community "volunteers"))
         shops (:docs (<- :firestore/on-snapshot {:path-collection [:communities my-community :shops]}))
         items (:docs (<- :firestore/on-snapshot
                          (merge {:path-collection [:communities my-community :items]}
@@ -422,7 +429,8 @@
                                   [k (group-by #(get-in % [:data "receipt-transaction-id"]) v)]))
                            (into {}))
         users (if admin?
-                (:docs (<- :firestore/on-snapshot {:path-collection [:users]}))
+                (:docs (<- :firestore/on-snapshot {:path-collection [:users]
+                                                   :where [["community" :== my-community]]}))
                 [])]
     [:div
      [:<>
@@ -503,7 +511,7 @@
   (let [my-uid (<- :get :user :uid)
         me (when my-uid (<- :firestore/on-snapshot {:path-document [:users my-uid]}))
         me-data (when me (:data me))
-        my-community (when me-data (get me-data "my-community"))        
+        my-community (when me-data (get me-data "community"))        
         _ (println "my community=" my-community)]
     [:<>
      [:div {:style (s :fg1)}]

@@ -34,13 +34,16 @@
  :set-user
  (fn [{:keys [db]} [_ user]]
    (let [uid (:uid user)]
-     {:db (assoc db :user user)
-      :firestore/on-snapshot {:path-document [:users uid]
-                              :on-next (fn [doc]
-                                         ;(println "on-next"  (get (:data doc) "my-community") doc)
-                                         (re-frame/dispatch [:assoc
-                                                             :user-data (:data doc)
-                                                             :my-community (get (:data doc) "my-community")]))}})))
+     (println :path-document [:users uid])
+     (merge
+      {:db (assoc db :user user)}
+      (when uid
+        {:firestore/on-snapshot {:path-document [:users uid]
+                                 :on-next (fn [doc]
+                                         ;(println "on-next"  (get (:data doc) "community") doc)
+                                            (re-frame/dispatch [:assoc
+                                                                :user-data (:data doc)
+                                                                :my-community (get (:data doc) "community")]))}})))))
 
 (reg-event-db
  :toggle-checked
@@ -131,7 +134,7 @@
    (let [{:keys [user]} db
          my-id (get user :uid)]
      {:firestore/set {:path [:users my-id]
-                      :data {"my-community" community-id}
+                      :data {"community" community-id}
                       :set-options {:merge true}}})))
 
 (reg-event-fx
@@ -226,10 +229,12 @@
 
 (reg-event-fx
  :firebase-error
- (fn [_ [_ & v]]
-   (println "error")
-   (cljs.pprint/pprint v)
-   (js/alert v)))
+ (fn [{:keys [db]} [_ & v]]
+   (let [{:keys [user]} db]
+     (println "error")
+     (cljs.pprint/pprint v)
+     (when user
+       (js/alert v)))))
 
 
 (re-frame/reg-event-fx
