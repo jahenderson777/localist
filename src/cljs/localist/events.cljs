@@ -99,12 +99,13 @@
 (reg-event-fx
  :account-edit-save
  (fn [{:keys [db]} [_ uid]]
-   (let [{:keys [edit-account temp-name temp-address temp-phone temp-dropoff temp-postcode
+   (let [{:keys [edit-account temp-name temp-address temp-phone temp-dropoff temp-postcode temp-balance
                  has-store? temp-shop-name temp-opening-times temp-info my-community]} db
 
          my-account-data (merge (when temp-name {"name" temp-name})
                                 (when temp-address {"address" temp-address})
                                 (when temp-phone {"phone" temp-phone})
+                                (when temp-balance {"balance" (js/Number.parseFloat temp-balance)})
                                 (when temp-dropoff {"dropoff" temp-dropoff})
                                 (when temp-postcode {"postcode" temp-postcode}))
          my-account-update [:firestore/set {:path [:users uid]
