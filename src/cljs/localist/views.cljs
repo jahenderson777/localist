@@ -351,7 +351,7 @@
        [:div {:style (s :pb1 :tl)}
         (doall (for [tr transactions]
                  ^{:key (:id tr)}   
-                 [:div {:style (s :mt2 :mb1 :ml2 :lh2)}
+                 [:div {:style (s :mt2 :mb1 :ml2)}
                   [:a {:style (s )
                        :on-click #(! :assoc :popup
                                      

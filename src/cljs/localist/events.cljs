@@ -37,9 +37,10 @@
      {:db (assoc db :user user)
       :firestore/on-snapshot {:path-document [:users uid]
                               :on-next (fn [doc]
-                                         (re-frame/dispatch :assoc
-                                                            :user-data (:data doc)
-                                                            :my-community (get (:data doc) "my-community")))}})))
+                                         ;(println "on-next"  (get (:data doc) "my-community") doc)
+                                         (re-frame/dispatch [:assoc
+                                                             :user-data (:data doc)
+                                                             :my-community (get (:data doc) "my-community")]))}})))
 
 (reg-event-db
  :toggle-checked
@@ -166,7 +167,7 @@
          ;temp-item-kw (keyword prefix (str "temp-item-new-" uid))
          ;temp-item (get db temp-item-kw)
          {:keys [my-community]} db]
-     (println "transaction-path" (last transaction-path) transaction-path)
+     (println "transaction-path" (last transaction-path) transaction-path my-community)
      {:firestore/write-batch
       {:operations
        (conj
@@ -203,6 +204,7 @@
                       :on-failure #(prn "Error:" %)}
       ;:db (dissoc db :edit-item temp-item-kw :show-menu)
       })))
+
 
 #_(reg-event-fx
  :firestore-listen-me
