@@ -245,6 +245,17 @@ else ask to select a community or to create a new one.
 
 ## Are you a community, food shop, or volunteer group who suddenly needs to efficiently manage home deliveries to support people staying at home due to the COVID-19 outbreak?
 
+Hi Folks, 
+
+The past few days I've been writing a website to help communities better manage home deliveries for the Corona emergency. People in the community can login and manage their 'shopping list'. The volunteers/administrators of the community can view all the shopping lists in their community and go about fulfilling peoples orders. There's a few other features like simple account balance, payments by PayPal transfers, uploading of photos of receipts & ability for shop keepers to maintain some text about their current stock.
+If you know any towns / villages / shops / or groups that might benefit from this system, I'd be happy set them up their own area. All free of course.
+
+Feel free to try it out, 
+https://localist.netlify.com/
+
+send me a message if you want more info, 
+
+
 Localist is a simple, flexible, free to use system to help volunteer groups or small food shops manage home deliveries.
 
 In Localist there is a concept of a 'community', this could be a small group of volunteers doing shopping for the people in their street, it could be a larger group who are co-ordinating home deliveries for a town or village, or it could be a particular food shop that are managing deliveries themselves.

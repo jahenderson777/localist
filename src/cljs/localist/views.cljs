@@ -479,7 +479,7 @@
              (get community "name")]
        [:pre {:style (s :tl :pa3)}
         (get community "info")]
-       (when-not (pos? (get me-data "balance"))
+       #_(when-not (pos? (get me-data "balance"))
          [:div {:style (s :tl :pa3)}
           "Add some credit to your account first."])]
       (when (seq shops)
