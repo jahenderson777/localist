@@ -182,10 +182,11 @@
             (and (= field-name "balance") "0.00")
             )]])]])
 
-(defn account-details [uid data admin?]
+(defn account-details [uid data admin? community-specific]
   (let [details-complete? (seq (get data "address"))
         my-community (get data "community")
         shop-doc (:data (<- :firestore/on-snapshot {:path-document [:communities my-community :shops uid]}))
+         
         has-store? (<- :get :has-store?)
         editing? (or (= uid (<- :get :edit-account))
                      (not details-complete?))
@@ -201,7 +202,8 @@
       [:div 
        [my-account-field data "name" editing?]
        [my-account-field data "phone" editing?]
-       (when (or (not editing?) admin?) [my-account-field data "balance" editing?])]
+       (when (or (not editing?) admin?) 
+         [my-account-field community-specific "balance" editing?])]
       [:div
        [my-account-field data "address" editing?]
        [my-account-field data "postcode" editing?]]
@@ -377,11 +379,13 @@
   ;(println "user" user)
   (let [{:keys [id data]} user
         details-complete? (seq (get data "address"))
+        my-community (get data "community")
+        community-specific (:data (<- :firestore/on-snapshot {:path-document [:communities my-community :users id]}))
         ;shopping-items (group-by #(get-in % [:data "receipt-transaction-id"]) items)
         ]
     ;(cljs.pprint/pprint shopping-items)
     [:<>
-     [account-details id data admin?]
+     [account-details id data admin? community-specific]
      (when details-complete?
        [:<> 
         [add-credit id data]
@@ -390,17 +394,54 @@
         (when admin? [image-uploader id])
         [transaction-list id shopping-items]])]))
 
-(defn account-block [user admin? shopping-items]
+(defn account-block [user admin? shopping-items volunteers]
   (let [{:keys [id data]} user
-        ;shopping-items (group-by #(get-in % [:data "receipt-transaction-id"]) items)
+        selected-uid (<- :get :selected-uid)
+        my-community (get data "community")
+
+        community-specific (:data (<- :firestore/on-snapshot {:path-document [:communities my-community :users id]}))
+        locked? (get community-specific "locked-by")
+;shopping-items (group-by #(get-in % [:data "receipt-transaction-id"]) items)
         ]
-    ;(cljs.pprint/pprint items)
+    ;(cljs.pprint/pprint shopping-items)
     [:<>
-     [account-details id data admin?]
-     [item-list id :shopping "Shopping List" (get shopping-items nil) admin?]
+     [:div {:style (s :pl2 :tl :mb2 :mt2 :pt2 :pb2 :white :bg-brand0 :o80 :flex :jcsb)
+            :on-click (fn [] 
+                        (! :assoc :selected-uid id))}
+      [:span {:style (s :fwb :f3)} 
+       (str (when locked?
+              "🔒")
+        (get (:data user) "name"))]
+      [:div {:style (s :tr
+                       {:display "inline-block"})}
+       (map-indexed (fn [idx item]
+                      ^{:key idx}
+                      [:span {:style (s :f5)}
+                       (get-in item [:data "item"])
+                       "; "])
+                    (get shopping-items nil))]]
+     (when (= selected-uid id)
+       [:<>
+        [account-details id data admin? community-specific]
+        [:div {:style (s :flex :fdr :jcsa)}
+         [:div ;{:style (s :ma2)}
+          (if (volunteers id)
+            [:a {:on-click #(! :volunteer-demote id)}
+             "demote from picker"]
+            [:a {:on-click #(! :volunteer-promote id)}
+             "promote to picker"])]
+         
+         [:div ;{:style (s :ma2)}
+          (if (get community-specific "locked-by")
+            [:a {:on-click #(! :unlock-order id)}
+             "unlock order"]
+            [:a {:on-click #(! :lock-order id)}
+             "lock order for picking"])]]
+        
+        [item-list id :shopping "Shopping List" (get shopping-items nil) admin?]
                ;[item-list id :surplus "Surplus"]
-     [image-uploader id]
-     [transaction-list id shopping-items]]))
+        [image-uploader id]
+        [transaction-list id shopping-items]])]))
 
 #_(:docs (<- :firestore/on-snapshot {:path-collection [:users id :shopping]
                                    :order-by [[:timestamp :asc]]}))
@@ -469,25 +510,13 @@
                   :when (not= id my-uid)]
               ^{:key id}
               [:div
-               [:div {:style (s :pl2 :tl :mb2 :mt2 :pt2 :pb2 :white :bg-brand0 :o80 :flex :jcsb)
-                      :on-click #(! :assoc :selected-uid id)}
-                [:span {:style (s :fwb :f3)} (get (:data user) "name")]
-                [:div {:style (s :tr
-                                 {:display "inline-block"})}
-                 (map-indexed (fn [idx item]
-                                ^{:key idx}
-                                [:span {:style (s :f5)} 
-                                 (get-in item [:data "item"])
-                                 "; "]) 
-                              (get-in items-grouped [id nil]))]]
-               (when (= selected-uid id)
-                 [account-block user admin? (get items-grouped id)])]))
+               [account-block user admin? (get items-grouped id) volunteers]]))
      [:hr]
      [:div {:style (s :pa3 :mt5 {:display "block"})}
       
       [button {:on-click #(! :sign-out)} "logout"]
       [:div {:style (s :ma4)}
-       [:a {:on-click #(! :firestore-set-community nil)}
+       [:a {:on-click #(! :firestore-set-community nil :selected-uid nil)}
         "leave community"]]]]))
 
 

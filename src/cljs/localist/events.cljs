@@ -108,23 +108,29 @@
          my-account-data (merge (when temp-name {"name" temp-name})
                                 (when temp-address {"address" temp-address})
                                 (when temp-phone {"phone" temp-phone})
-                                (when temp-balance {"balance" (js/Number.parseFloat temp-balance)})
                                 (when temp-dropoff {"dropoff" temp-dropoff})
                                 (when temp-postcode {"postcode" temp-postcode}))
          my-account-update [:firestore/set {:path [:users uid]
-                                               :data my-account-data
-                                               :set-options {:merge true}}]
+                                            :data my-account-data
+                                            :set-options {:merge true}}]
+
+         my-community-specific-data (merge (when temp-balance {"balance" (js/Number.parseFloat temp-balance)}))
+         my-community-specific-update [:firestore/set {:path [:communities my-community :users uid]
+                                                       :data my-community-specific-data
+                                                       :set-options {:merge true}}]
 
          my-shop-data (doto (merge (when temp-shop-name {"shop-name" temp-shop-name})
                                    (when temp-opening-times {"opening-times" temp-opening-times})
                                    (when temp-info {"info" temp-info}))
                         println)
-         my-shop-update [:firestore/set {:path [:communities my-community :shops uid]
-                                            :data my-shop-data
-                                            :set-options {:merge true}}]]
+         my-shop-update [:firestore/set {:path [:communities my-community :users uid]
+                                         :data my-shop-data
+                                         :set-options {:merge true}}]]
      {:firestore/write-batch
       {:operations (remove nil? [(when my-account-data my-account-update)
-                                 (when (and has-store? my-shop-data) my-shop-update)])
+                                 (when my-community-specific-data my-community-specific-update)
+                                 (when (and has-store? my-shop-data) my-shop-update)
+                                 ])
        :on-success #(re-frame/dispatch [:assoc :edit-account nil])
        :on-failure #(prn "Error:" %)}})))
 
@@ -135,6 +141,40 @@
          my-id (get user :uid)]
      {:firestore/set {:path [:users my-id]
                       :data {"community" community-id}
+                      :set-options {:merge true}}})))
+
+(reg-event-fx
+ :volunteer-promote
+ (fn [{:keys [db]} [_ uid]]
+   (let [{:keys [my-community]} db]
+     {:firestore/set {:path [:communities my-community]
+                      :data {"volunteers" (firestore/array-union uid)}
+                      :set-options {:merge true}}})))
+
+(reg-event-fx
+ :volunteer-demote
+ (fn [{:keys [db]} [_ uid]]
+   (let [{:keys [my-community]} db]
+     {:firestore/set {:path [:communities my-community]
+                      :data {"volunteers" (firestore/array-remove uid)}
+                      :set-options {:merge true}}})))
+
+(reg-event-fx
+ :lock-order
+ (fn [{:keys [db]} [_ uid]]
+   (let [{:keys [my-community user]} db
+         my-uid (get user :uid)]
+     {:firestore/set {:path [:communities my-community :users uid]
+                      :data {"locked-by" my-uid}
+                      :set-options {:merge true}}})))
+
+(reg-event-fx
+ :unlock-order
+ (fn [{:keys [db]} [_ uid]]
+   (let [{:keys [my-community user]} db
+         my-uid (get user :uid)]
+     {:firestore/set {:path [:communities my-community :users uid]
+                      :data {"locked-by" nil}
                       :set-options {:merge true}}})))
 
 (reg-event-fx
@@ -179,7 +219,7 @@
           (do (println [:users selected-uid item-id])
               [:firestore/update {:path [:communities my-community :items item-id]
                                   :data {:receipt-transaction-id (last transaction-path)}}]))
-        [:firestore/update {:path [:users selected-uid]
+        [:firestore/update {:path [:communities my-community :users selected-uid]
                             :data {:balance (firestore/increment-field (* -1 transaction-amount))}}])
        :on-success #(re-frame/dispatch [:assoc :checked-items #{}])
        :on-failure #(js/alert "Error setting receipt against items:" %)}
@@ -234,7 +274,7 @@
      (println "error")
      (cljs.pprint/pprint v)
      (when user
-       (js/alert v)))))
+       (js/alert (.toString (first v)))))))
 
 
 (re-frame/reg-event-fx

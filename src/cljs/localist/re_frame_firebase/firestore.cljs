@@ -35,6 +35,14 @@
   (.increment (.. firebase -firestore -FieldValue)
               amount))
 
+(defn array-union [val]
+  (.arrayUnion (.. firebase -firestore -FieldValue)
+               val))
+
+(defn array-remove [val]
+  (.arrayRemove (.. firebase -firestore -FieldValue)
+                val))
+
 (defn delete-field-value
   "Returns a field value to be used to delete a field.
   See https://firebase.google.com/docs/firestore/manage-data/delete-data#fields

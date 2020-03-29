@@ -242,3 +242,20 @@ on first login account details are blank,
 show a form to add your details,
 if we have a community-id in the url use that,
 else ask to select a community or to create a new one.
+
+## Are you a community, food shop, or volunteer group who suddenly needs to efficiently manage home deliveries to support people staying at home due to the COVID-19 outbreak?
+
+Localist is a simple, flexible, free to use system to help volunteer groups or small food shops manage home deliveries.
+
+In Localist there is a concept of a 'community', this could be a small group of volunteers doing shopping for the people in their street, it could be a larger group who are co-ordinating home deliveries for a town or village, or it could be a particular food shop that are managing deliveries themselves.
+
+After logging in by either receiving an SMS code or creating an account with your email address you can join a community (or create a new community).
+
+You can then start adding items to a shopping list which can be seen by the community co-ordinator and their assistants.
+
+How payments are handled is up to the community but Localist provides a simple account balance for each community member and a link to make a PayPal transfer to an account setup by the community co-ordinator (PayPal transfers are convenient because they require no premium account features, no complicated setup and there are no fees on transactions or refunds).
+
+'Pickers' can see all shopping lists in their community on their smartphone. When a picker is ready to pick an order they 'lock' it and do their best to pick the items. As they pick items off the shelves they check off items on the list on their phone. Once the items have been purchased the picker can then upload a photo of a receipt and mark the purchased items against the receipt, the total amount for the purchase is then deducted off the person's balance.
+
+
+
