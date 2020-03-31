@@ -153,37 +153,41 @@
                              (re-frame/dispatch-sync [:toggle-checked (:id item)]))
                 :type "checkbox"}])]))
 
-(defn my-account-field [data field-name editing? & [last?]]
-  [:div {:style (s (when-not last? :mr2))}
-   [:div {:style (s :tl {:display "inline-block"})}
-    [:div {:style (s :pl1 :pr1 :f6 :brand0)}
-     (if (= field-name "dropoff")
-       "Drop-off place/notes"
-       (clojure.string/capitalize field-name))]
-    (if editing?
-      (let [kw (keyword (str "temp-" field-name))]
+(defn my-account-field [{:keys [data field-name editing? last? db-key]}]
+  (let [kw (or db-key (keyword (str "temp-" field-name)))]
+    [:div {:style (s (when (and (not editing?)
+                                last?) :mr2))}
+     [:div {:style (s :tl
+                      (when editing? :ma2)
+                      (when-not editing? {:display "inline-block"}))}
+      [:div {:style (s :pl1 :pr1 :f6 :brand0)}
+       (if (= field-name "dropoff")
+         "Drop-off place/notes"
+         (clojure.string/capitalize field-name))]
+      (if editing?
         [(if (#{"address" "dropoff" "info"} field-name) 
            :textarea
            :input) {:style (s :f4 :mb2 :mt1 :pl2 
-                              {:width 300})
+                              {:width "100%"})
                     :type "text"
                     :id field-name
                     :name field-name
-                    :rows 3
+                    :rows 7
                     :value (or (<- :get kw) 
                                (get data field-name))                
-                    :on-change #(re-frame/dispatch-sync [:assoc kw (-> % .-target .-value)])}])
-      [:div {:style (s  :mb2 :pa1 :f5
-                        {:display "inline-block"
-                         :min-height 20
-                         :min-width 20})}
-       [:pre
-        (or (get data field-name)
-            (and (= field-name "balance") "0.00")
-            )]])]])
+                    :on-change #(re-frame/dispatch-sync [:assoc kw (-> % .-target .-value)])}]
+        [:div {:style (s  :mb2 :pa1 :f5
+                          {:display "inline-block"
+                           :min-height 20
+                           :min-width 20})}
+         [:pre
+          (or (get data field-name)
+              (and (= field-name "balance") "0.00")
+              )]])]]))
 
 (defn account-details [uid data admin? community-specific]
-  (let [details-complete? (seq (get data "address"))
+  (let [details-complete? (or (seq (get data "address"))
+                              (seq (<- :get :temp-address)))
         my-community (get data "community")
         shop-doc (:data (<- :firestore/on-snapshot {:path-document [:communities my-community :shops uid]}))
          
@@ -200,15 +204,15 @@
                       (when-not editing? :flex) 
                       :jcsb)}
       [:div 
-       [my-account-field data "name" editing?]
-       [my-account-field data "phone" editing?]
+       [my-account-field {:data data :field-name "name" :editing? editing?}]
+       [my-account-field {:data data :field-name "phone" :editing? editing?}]
        (when (or (not editing?) admin?) 
-         [my-account-field community-specific "balance" editing?])]
+         [my-account-field {:data community-specific :field-name "balance" :editing? editing?}])]
       [:div
-       [my-account-field data "address" editing?]
-       [my-account-field data "postcode" editing?]]
+       [my-account-field {:data data :field-name "address" :editing? editing?}]
+       [my-account-field {:data data :field-name "postcode" :editing? editing?}]]
       [:div
-       [my-account-field data "dropoff" editing? (not editing?)]
+       [my-account-field {:data data :field-name "dropoff" :editing? editing? :last? (not editing?)}]
        (when-not editing?
          [:div {:style (s :tc)}
           [:a {:on-click (fn [] (! :assoc :edit-account uid
@@ -216,7 +220,22 @@
                                    :temp-dropoff nil :temp-balance nil
                                    :temp-shop-name nil :temp-opening-times nil :temp-info nil
                                    :has-store? (boolean shop-doc)))}
-           "edit"]])]
+           "edit"]])
+       (when admin?
+         [:div {:style (s :tc :mt3)}
+          [:a {:on-click (fn [] (! :assoc :popup
+                                   [:div {:style (s :tc :bg-ui1 :pa4 {:max-width 400
+                                                                      :margin "auto"})}
+                                    [:div {:style (s :ma4)}
+                                     "Delete user: are you sure?"]
+                                    [:a {:style (s :ma4)
+                                         :on-click (fn [] (! :delete-user uid))}
+                                     "yes"]
+                                    [:a {:style (s :ma4)
+                                         :on-click (fn [] (! :assoc :popup nil))}
+                                     "cancel"]
+                                    ]))}
+           "delete"]])]
       (when editing?
         [:div {:style (s :mb3 :mt3)}
          [:label {:style (s :mr2 :pb2 {:position "relative"
@@ -231,9 +250,9 @@
                   :type "checkbox"}]])]
      (when (and has-store? editing?)
        [:div
-        [my-account-field shop-doc "shop-name" editing?]
-        [my-account-field shop-doc "opening-times" editing?]
-        [my-account-field shop-doc "info" editing?]])
+        [my-account-field {:data shop-doc :field-name "shop-name" :editing? editing?}]
+        [my-account-field {:data shop-doc :field-name "opening-times" :editing? editing?}]
+        [my-account-field {:data shop-doc :field-name "info" :editing? editing?}]])
      (when editing?
        [:<> 
         [:div
@@ -268,7 +287,7 @@
     [add-form uid prefix false]]))
 
 
-(defn add-credit [uid]
+(defn add-credit [paypal]
   [:div {:style (s :mb3)}
    "£ "
    [:input {:style (s :w5 :f3)
@@ -293,7 +312,7 @@
                                             {:background-color "cornflowerblue"
                                              :text-decoration "none"})
 
-                                  :href (str "https://paypal.me/jahenderson777/" (<- :get :credit-amount) "GBP")}
+                                  :href (str paypal "/" (<- :get :credit-amount) "GBP")}
                               "Continue to PayPal"]]])}
     "Add Credit"]
    
@@ -375,37 +394,34 @@
        [:div {:style (s :tl :ui0 :pa2 :o80)}
         "Receipts will appear here when we've done some shopping for you. We will deduct the value from your account balance and include photos of any receipts."])]))
 
-(defn account-block-me [user admin? shopping-items]
+(defn account-block-me [{:keys [user admin? shopping-items paypal]}]
   ;(println "user" user)
   (let [{:keys [id data]} user
         details-complete? (seq (get data "address"))
         my-community (get data "community")
-        community-specific (:data (<- :firestore/on-snapshot {:path-document [:communities my-community :users id]}))
-        ;shopping-items (group-by #(get-in % [:data "receipt-transaction-id"]) items)
-        ]
+        community-specific (:data (<- :firestore/on-snapshot {:path-document [:communities my-community :users id]}))]
     ;(cljs.pprint/pprint shopping-items)
     [:<>
      [account-details id data admin? community-specific]
      (when details-complete?
        [:<> 
-        [add-credit id data]
+        (when (seq paypal) [add-credit paypal])
         [item-list id :shopping "Shopping List" (get shopping-items nil) admin?]
                ;[item-list id :surplus "Surplus"]
         (when admin? [image-uploader id])
         [transaction-list id shopping-items]])]))
 
-(defn account-block [user admin? shopping-items volunteers]
+(defn account-block [{:keys [user admin? shopping-items volunteers]}]
   (let [{:keys [id data]} user
         selected-uid (<- :get :selected-uid)
         my-community (get data "community")
 
         community-specific (:data (<- :firestore/on-snapshot {:path-document [:communities my-community :users id]}))
-        locked? (get community-specific "locked-by")
-;shopping-items (group-by #(get-in % [:data "receipt-transaction-id"]) items)
-        ]
+        locked? (get community-specific "locked-by")]
     ;(cljs.pprint/pprint shopping-items)
     [:<>
-     [:div {:style (s :pl2 :tl :mb2 :mt2 :pt2 :pb2 :white :bg-brand0 :o80 :flex :jcsb)
+     [:div {:style (s :pl2 :tl :mb2 :mt2 :pt2 :pb2 :white :bg-brand0 :o80 :flex :jcsb
+                      {:cursor "pointer"})
             :on-click (fn [] 
                         (! :assoc :selected-uid id))}
       [:span {:style (s :fwb :f3)} 
@@ -424,14 +440,14 @@
        [:<>
         [account-details id data admin? community-specific]
         [:div {:style (s :flex :fdr :jcsa)}
-         [:div ;{:style (s :ma2)}
+         [:div 
           (if (volunteers id)
             [:a {:on-click #(! :volunteer-demote id)}
              "demote from picker"]
             [:a {:on-click #(! :volunteer-promote id)}
              "promote to picker"])]
          
-         [:div ;{:style (s :ma2)}
+         [:div
           (if (get community-specific "locked-by")
             [:a {:on-click #(! :unlock-order id)}
              "unlock order"]
@@ -443,8 +459,7 @@
         [image-uploader id]
         [transaction-list id shopping-items]])]))
 
-#_(:docs (<- :firestore/on-snapshot {:path-collection [:users id :shopping]
-                                   :order-by [[:timestamp :asc]]}))
+
 (defn logged-in []
   (let [my-uid (<- :get :user :uid)
         selected-uid (or (<- :get :selected-uid) my-uid)
@@ -475,13 +490,32 @@
                 [])]
     [:div
      [:<>
-      [:div [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80)}
-             (get community "name")]
-       [:pre {:style (s :tl :pa3)}
-        (get community "info")]
+      [:div 
+       (if (= my-community (<- :get :edit-community))
+         [:div
+          [my-account-field {:data community :field-name "name" :editing? true :db-key :temp-community-name}]
+          [my-account-field {:data community :field-name "info" :editing? true}]
+          [my-account-field {:data community :field-name "paypal" :editing? true}]
+          [:div
+           [:button {:style (s :bg-status0 :white :pa2 :mt3 :mb3 :fs0)
+                     :on-click (fn []
+                                 (! :edit-community-save my-community))} 
+            "save"]]
+          [:div {:style (s :ma3)}
+           [:a {:on-click #(! :assoc :edit-community false)}
+            "cancel"]]]
+         [:<>
+          (when admin?
+            [:div {:style (s :tr :pa3)}
+             [:a {:on-click #(! :assoc :edit-community my-community :edit-account false)}
+              "edit"]])
+          [:div {:style (s :f3 :pb3 :pt3 :fwb :ui0 :o80)}
+           (get community "name")]
+          [:pre {:style (s :tl :pa3)}
+           (get community "info")]])
        #_(when-not (pos? (get me-data "balance"))
-         [:div {:style (s :tl :pa3)}
-          "Add some credit to your account first."])]
+           [:div {:style (s :tl :pa3)}
+            "Add some credit to your account first."])]
       (when (seq shops)
         [:<>
          [:div {:style (s :pl2 :tl :f3 :mb1 :mt2 :pt2 :pb2 :fwb :white :bg-brand0 :o80)}
@@ -500,19 +534,41 @@
                     [:div {:style (s :f6 :brand0 :mb2 :mt3)}  "Info"]
                     [:div  (get data "info")]]]))])]
      [:div
-      [:div {:style (s :pl2 :tl :f3 :mb2 :mt2 :pt2 :pb2 :fwb :white :bg-brand0 :o80)
+      [:div {:style (s :pl2 :tl :f3 :mb2 :mt2 :pt2 :pb2 :fwb :white :bg-brand0 :o80
+                       (when (or admin? volunteer?) 
+                         {:cursor "pointer"}))
              :on-click #(! :assoc :selected-uid my-uid)}
        "My Account"]
       (when (and (seq me)
                  (= selected-uid my-uid))
-        [account-block-me me admin? (get items-grouped my-uid)])]
+        [account-block-me {:user me 
+                           :admin? admin? 
+                           :shopping-items (get items-grouped my-uid)
+                           :paypal (get community "paypal")}])]
      (doall (for [{:keys [id] :as user} users
                   :when (not= id my-uid)]
               ^{:key id}
               [:div
-               [account-block user admin? (get items-grouped id) volunteers]]))
+               [account-block {:user user
+                               :admin? admin?
+                               :shopping-items (get items-grouped id)
+                               :volunteers volunteers}]]))
      [:hr]
      [:div {:style (s :pa3 :mt5 {:display "block"})}
+      (when (or admin? volunteer?)
+        [:div {:style (s :ma4)}
+         [:input {:style (s :f4 :mb2 :mt1 :pa2
+                            ;{:width "100%"}
+                            )
+                  :type "text"
+                  :size 23
+                  :id "new-user"
+                  :name "new-user"
+                  :placeholder "name on account"
+                  :value (<- :get :temp-new-user)                  
+                  :on-change #(re-frame/dispatch-sync [:assoc :temp-new-user (-> % .-target .-value)])}]
+         [:button {:style (s :bg-status0 :white :pa2 :mt3 :mb3 :fs0)
+                   :on-click #(! :create-user)} "create user"]])
       
       [button {:on-click #(! :sign-out)} "logout"]
       [:div {:style (s :ma4)}

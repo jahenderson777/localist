@@ -50,7 +50,7 @@
   ;(defroute "/logout" [] (dispatch [:sign-out]))
   ;(defroute "/article/:slug" [slug] (dispatch [:assoc :active-page :article :slug slug]))
   ;(defroute "/:profile/favorites" [profile] (dispatch [:assoc :active-page :favorited :favorited (subs profile 1)]))
-  ;(defroute "/:community" [community] (dispatch-sync [:assoc :my-community community]))
+  (defroute "/:community" [community] (dispatch-sync [:assoc :community-from-url community]))
   (hook-browser-navigation!))
 
 

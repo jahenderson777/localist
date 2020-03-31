@@ -17,11 +17,14 @@
 
 (reg-event-fx
  :sign-in-facebook
- (fn [_ _] {:firebase/facebook-sign-in {:sign-in-method :popup}}))
+ (fn [_ _] 
+   {:firebase/facebook-sign-in {:sign-in-method :popup}}))
 
 (reg-event-fx
  :sign-out
- (fn [_ _] {:firebase/sign-out nil}))
+ (fn [{:keys [db]} _] 
+   {:db (dissoc db :my-community)
+    :firebase/sign-out nil}))
 
 (reg-event-fx
  :send-password-reset-email
@@ -33,17 +36,31 @@
 (reg-event-fx
  :set-user
  (fn [{:keys [db]} [_ user]]
-   (let [uid (:uid user)]
+   (let [uid (:uid user)
+         {:keys [community-from-url]} db]
      (println :path-document [:users uid])
      (merge
       {:db (assoc db :user user)}
       (when uid
         {:firestore/on-snapshot {:path-document [:users uid]
                                  :on-next (fn [doc]
-                                         ;(println "on-next"  (get (:data doc) "community") doc)
-                                            (re-frame/dispatch [:assoc
-                                                                :user-data (:data doc)
-                                                                :my-community (get (:data doc) "community")]))}})))))
+                                            (re-frame/dispatch [:received-user-data (:data doc)]))}})))))
+
+(reg-event-fx
+ :received-user-data
+ (fn [{:keys [db]} [_ user-data]]
+   (let [my-community (get user-data "community")
+         db-my-community (:my-community db)
+         {:keys [community-from-url]} db]
+     (println "received user data: " community-from-url my-community db-my-community)
+     (merge
+      (if (and community-from-url 
+               (empty? my-community)
+               (empty? db-my-community))
+        {:dispatch [:firestore-set-community community-from-url]}
+        {:db (assoc db 
+                    :user-data user-data
+                    :my-community my-community)})))))
 
 (reg-event-db
  :toggle-checked
@@ -92,10 +109,10 @@
          temp-item-kw (keyword prefix (str "temp-item-" uid))
          temp-item (get db temp-item-kw)]
      {:firestore/update {:path [:communities my-community :items (:id edit-item)]
-                      :data (assoc (:data edit-item)
-                                   :item temp-item) 
-                      :on-success [:assoc temp-item-kw nil :edit-item nil]
-                      :on-failure #(prn "Error:" %)}})))
+                         :data (assoc (:data edit-item)
+                                      :item temp-item)
+                         :on-success [:assoc temp-item-kw nil :edit-item nil]
+                         :on-failure #(prn "Error:" %)}})))
 
 
 
@@ -123,7 +140,7 @@
                                    (when temp-opening-times {"opening-times" temp-opening-times})
                                    (when temp-info {"info" temp-info}))
                         println)
-         my-shop-update [:firestore/set {:path [:communities my-community :users uid]
+         my-shop-update [:firestore/set {:path [:communities my-community :shops uid]
                                          :data my-shop-data
                                          :set-options {:merge true}}]]
      {:firestore/write-batch
@@ -133,6 +150,21 @@
                                  ])
        :on-success #(re-frame/dispatch [:assoc :edit-account nil])
        :on-failure #(prn "Error:" %)}})))
+
+
+(reg-event-fx
+ :edit-community-save
+ (fn [{:keys [db]} [_ community]]
+   (let [{:keys [temp-community-name temp-info temp-paypal]} db
+         data (merge (when temp-community-name {"name" temp-community-name})
+                     (when temp-info {"info" temp-info})
+                     (when temp-paypal {"paypal" temp-paypal}))]
+     (when (seq data)
+       {:firestore/set {:path [:communities community]
+                        :data data
+                        :set-options {:merge true}
+                        :on-success #(re-frame/dispatch [:assoc :edit-community nil])}}))))
+
 
 (reg-event-fx
  :firestore-set-community
@@ -176,6 +208,24 @@
      {:firestore/set {:path [:communities my-community :users uid]
                       :data {"locked-by" nil}
                       :set-options {:merge true}}})))
+
+(reg-event-fx
+ :create-user
+ (fn [{:keys [db]} [_]]
+   (let [{:keys [my-community temp-new-user]} db]
+     {:db (dissoc db :temp-new-user)
+      :firestore/add {:path [:users]
+                      :data {"name" temp-new-user
+                             "community" my-community}}})))
+
+(reg-event-fx
+ :delete-user
+ (fn [{:keys [db]} [_ uid]]
+   (let [{:keys []} db]
+     {:db (dissoc db :popup)
+      :firestore/delete {:path [:users uid]
+                         :on-failure #(prn "Error:" %)}})))
+
 
 (reg-event-fx
  :firestore-delete-item

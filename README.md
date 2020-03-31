@@ -270,3 +270,5 @@ How payments are handled is up to the community but Localist provides a simple a
 
 
 
+
+Give people in your community a way to manage a shopping list that can be fulfilled by you and your team.

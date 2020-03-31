@@ -40,6 +40,11 @@ input[type="text"], input[type="email"], input[type="phone"], input[type="number
     caret-color: black;
 }
 
+textarea {
+    font-family: inherit;
+    font-size: inherit;
+ }
+
 .border-menu {
     position: relative;
     padding-left: 1.25em;
