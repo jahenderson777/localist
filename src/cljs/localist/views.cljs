@@ -187,7 +187,8 @@
 
 (defn account-details [uid data admin? community-specific]
   (let [details-complete? (or (seq (get data "address"))
-                              (seq (<- :get :temp-address)))
+                              ;(seq (<- :get :temp-address))
+                              )
         my-community (get data "community")
         shop-doc (:data (<- :firestore/on-snapshot {:path-document [:communities my-community :shops uid]}))
          

@@ -50,6 +50,8 @@
  :received-user-data
  (fn [{:keys [db]} [_ user-data]]
    (let [my-community (get user-data "community")
+         my-uid (get-in db [:db :uid])
+         address (get user-data "address")
          db-my-community (:my-community db)
          {:keys [community-from-url]} db]
      (println "received user data: " community-from-url my-community db-my-community)
@@ -60,7 +62,9 @@
         {:dispatch [:firestore-set-community community-from-url]}
         {:db (assoc db 
                     :user-data user-data
-                    :my-community my-community)})))))
+                    :my-community my-community
+                    :edit-account (when (empty? address)
+                                    my-uid))})))))
 
 (reg-event-db
  :toggle-checked
