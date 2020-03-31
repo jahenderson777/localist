@@ -577,7 +577,8 @@
 
 
 (defn select-community []
-  (let [communities (:docs (<- :firestore/on-snapshot {:path-collection [:communities]}))]
+  (let [communities (:docs (<- :firestore/on-snapshot {:path-collection [:communities]
+                                                       :where [["private" :== false]]}))]
     ;(cljs.pprint/pprint communities)
     [:div [:div {:style (s :f3 :pa3)}
            "Please select a community"
