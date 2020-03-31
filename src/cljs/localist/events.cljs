@@ -23,7 +23,7 @@
 (reg-event-fx
  :sign-out
  (fn [{:keys [db]} _] 
-   {:db (dissoc db :my-community)
+   {:db (dissoc db :my-community :selected-uid)
     :firebase/sign-out nil}))
 
 (reg-event-fx

@@ -260,7 +260,7 @@ Localist is a simple, flexible, free to use system to help volunteer groups or s
 
 In Localist there is a concept of a 'community', this could be a small group of volunteers doing shopping for the people in their street, it could be a larger group who are co-ordinating home deliveries for a town or village, or it could be a particular food shop that are managing deliveries themselves.
 
-After logging in by either receiving an SMS code or creating an account with your email address you can join a community (or create a new community).
+After logging in by either receiving an SMS code or creating an account with your email address you can join a community (or ask to setup a new community).
 
 You can then start adding items to a shopping list which can be seen by the community co-ordinator and their assistants.
 

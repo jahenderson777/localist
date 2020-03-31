@@ -557,8 +557,9 @@
      [:hr]
      [:div {:style (s :pa3 :mt5 {:display "block"})}
       (when (or admin? volunteer?)
-        [:div {:style (s :ma4)}
-         [:input {:style (s :f4 :mb2 :mt1 :pa2
+        [:div {:style (s :ma3)}
+         [:div "create a user with no login"]
+         [:input {:style (s :f4 :mb2 :mt2 :pa2
                             ;{:width "100%"}
                             )
                   :type "text"
@@ -569,7 +570,8 @@
                   :value (<- :get :temp-new-user)                  
                   :on-change #(re-frame/dispatch-sync [:assoc :temp-new-user (-> % .-target .-value)])}]
          [:button {:style (s :bg-status0 :white :pa2 :mt3 :mb3 :fs0)
-                   :on-click #(! :create-user)} "create user"]])
+                   :on-click #(! :create-user)} "create user"]
+         [:hr]])
       
       [button {:on-click #(! :sign-out)} "logout"]
       [:div {:style (s :ma4)}
