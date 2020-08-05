@@ -1,7 +1,6 @@
 # localist
 
-A [re-frame](https://github.com/day8/re-frame) application designed to ... well, that part is up to
-you.
+For communities to coordinate volunteer based local home deliveries
 
 ## Getting Started
 
